@@ -1,5 +1,7 @@
 --CREACION DE TABLAS
 
+BEGIN TRANSACTION
+
 CREATE TABLE [GD2C2022].[sale_worson].Variante
 (
 	VARIANTE_CODIGO nvarchar(100) PRIMARY KEY,
@@ -34,12 +36,11 @@ CREATE TABLE [GD2C2022].[sale_worson].Producto_variante
 CREATE TABLE [GD2C2022].[sale_worson].Venta_detalle
 (
 	VENTA_CODIGO decimal(18,2),				--FK a Venta.VENTA_CODIGO
-	PRODUCTO_VARIANTE_CODIGO nvarchar(100), --FK a Producto.PRODUCTO_VARIANTE_CODIGO
+	PRODUCTO_VARIANTE_CODIGO nvarchar(100), --FK a Producto.PRODUCTO_variante_CODIGO
 	VENTA_PRODUCTO_CANTIDAD decimal(18,2),
 	VENTA_PRODUCTO_PRECIO decimal(18,2),
 	PRIMARY KEY (VENTA_CODIGO, PRODUCTO_VARIANTE_CODIGO)
 )
-
 -----/
 
 CREATE TABLE [GD2C2022].[sale_worson].Venta
@@ -50,7 +51,7 @@ CREATE TABLE [GD2C2022].[sale_worson].Venta
 	VENTA_TOTAL decimal(18,2),
 	VENTA_MEDIO_ENVIO_ID decimal,	--FK a Medio_envio.VENTA_MEDIO_ENVIO_ID
 	CANAL_VENTA_ID decimal,			--FK a Canal_venta.CANAL_VENTA_TIPO
-	CLIENTE_ID decimal(18,2),		--FK CLiente
+	CLIENTE_ID decimal,		--FK CLiente
 	CONSTRAINT ck_venta_total CHECK(VENTA_TOTAL > 0)	--CONTRAIN DE TOTAL MAYOR A CERO 
 )
 
@@ -100,7 +101,7 @@ CREATE TABLE [GD2C2022].[sale_worson].Venta_cupon
 CREATE TABLE [GD2C2022].[sale_worson].Venta_por_descuento
 (
 	VENTA_CODIGO decimal(18,2),			--FK a Venta.VENTA_CODIGO
-	VENTA_DESCUENTO_ID decimal(18,2),	--FK a Descuento_venta.VENTA_DESCUENTO_ID
+	VENTA_DESCUENTO_ID decimal,	--FK a Descuento_venta.VENTA_DESCUENTO_ID
 	PRIMARY KEY (VENTA_CODIGO, VENTA_DESCUENTO_ID)
 )
 
@@ -108,7 +109,7 @@ CREATE TABLE [GD2C2022].[sale_worson].Venta_por_descuento
 
 CREATE TABLE [GD2C2022].[sale_worson].Descuento_venta
 (
-	VENTA_DESCUENTO_ID int PRIMARY KEY IDENTITY(1,1), --lo creamos nosotros
+	VENTA_DESCUENTO_ID decimal PRIMARY KEY IDENTITY(1,1), --lo creamos nosotros
 	VENTA_DESCUENTO_IMPORTE decimal(18,2) NOT NULL,
 	VENTA_DESCUENTO_CONCEPTO nvarchar(510)
 )
@@ -157,7 +158,7 @@ CREATE TABLE [GD2C2022].[sale_worson].Compra
 CREATE TABLE [GD2C2022].[sale_worson].Compra_detalle
 (
 	COMPRA_NUMERO decimal(19,0) ,				--FK a Compra.COMPRA_NUMERO
-	PRODUCTO_VARIANTE_CODIGO nvarchar(100),		--FK a Producto.PRODUCTO_VARIANTE_CODIGO
+	PRODUCTO_VARIANTE_CODIGO nvarchar(100),		--FK a Producto.PRODUCTO_variante_CODIGO
 	COMPRA_PRODUCTO_CANTIDAD decimal(18,0),
 	COMPRA_PRODUCTO_PRECIO decimal(18,0),
 	PRIMARY KEY (COMPRA_NUMERO, PRODUCTO_VARIANTE_CODIGO)
@@ -181,7 +182,7 @@ CREATE TABLE [GD2C2022].[sale_worson].Proveedor
 
 CREATE TABLE [GD2C2022].[sale_worson].Descuento_compra
 (
-	COMPRA_DESCUENTO_ID int PRIMARY KEY IDENTITY(1,1), --lo creamos nosotros,
+	COMPRA_DESCUENTO_ID decimal PRIMARY KEY IDENTITY(1,1), --lo creamos nosotros,
 	DESCUENTO_COMPRA_CODIGO decimal(19,0),
 	DESCUENTO_COMPRA_VALOR decimal(18,2)
 )
@@ -194,3 +195,7 @@ CREATE TABLE [GD2C2022].[sale_worson].Compra_por_descuento
 	COMPRA_DESCUENTO_ID decimal,	--FK a Descuento_compra.COMPRA_DESCUENTO_ID
 	PRIMARY KEY (COMPRA_NUMERO, COMPRA_DESCUENTO_ID)
 )
+
+
+--ROLLBACK
+COMMIT
