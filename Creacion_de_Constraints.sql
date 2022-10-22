@@ -1,7 +1,9 @@
 -- CREACION DE CONSTRAINTS Y FK
 
+BEGIN TRANSACTION
+
 ALTER TABLE [GD2C2022].[sale_worson].Producto_variante
-ADD CONSTRAINT FK_VarienteCodigo
+ADD CONSTRAINT FK_varianteCodigo
 FOREIGN KEY (VARIANTE_CODIGO) REFERENCES [GD2C2022].[sale_worson].Variante(VARIANTE_CODIGO)
 
 ALTER TABLE [GD2C2022].[sale_worson].Producto_variante
@@ -17,7 +19,7 @@ FOREIGN KEY (VENTA_CODIGO) REFERENCES [GD2C2022].[sale_worson].Venta(VENTA_CODIG
 
 ALTER TABLE [GD2C2022].[sale_worson].Venta_detalle
 ADD CONSTRAINT FK_Venta_detalleVarianteProducto
-FOREIGN KEY (PRODUCTO_VARIANTE_CODIGO) REFERENCES [GD2C2022].[sale_worson].Producto_variente(PRODUCTO_VARIANTE_CODIGO)
+FOREIGN KEY (PRODUCTO_VARIANTE_CODIGO) REFERENCES [GD2C2022].[sale_worson].Producto_variante(PRODUCTO_VARIANTE_CODIGO)
 
 -----/////////////////////////////////////////////////////////////////////////-----
 
@@ -68,7 +70,7 @@ FOREIGN KEY (COMPRA_NUMERO) REFERENCES [GD2C2022].[sale_worson].Compra(COMPRA_NU
 
 ALTER TABLE [GD2C2022].[sale_worson].Compra_detalle
 ADD CONSTRAINT FK_Compra_detalle_VarianteProducto
-FOREIGN KEY (PRODUCTO_VARIANTE_CODIGO) REFERENCES [GD2C2022].[sale_worson].Producto_variente(PRODUCTO_VARIANTE_CODIGO)
+FOREIGN KEY (PRODUCTO_VARIANTE_CODIGO) REFERENCES [GD2C2022].[sale_worson].Producto_variante(PRODUCTO_VARIANTE_CODIGO)
 
 -----/////////////////////////////////////////////////////////////////////////-----
 
@@ -83,16 +85,5 @@ FOREIGN KEY (COMPRA_DESCUENTO_ID) REFERENCES [GD2C2022].[sale_worson].Descuento_
 -----/////////////////////////////////////////////////////////////////////////-----
 
 
-
-
-/*
-
-ALTER TABLE [GD2C2022].[sale_worson].
-ADD CONSTRAINT FK_
-FOREIGN KEY () REFERENCES ()
-
------/////////////////////////////////////////////////////////////////////////-----
-
-
-*/
-
+--ROLLBACK
+COMMIT
