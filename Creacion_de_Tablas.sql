@@ -1,4 +1,5 @@
 --CREACION DE TABLAS
+USE GD2C2022
 
 BEGIN TRANSACTION
 
@@ -28,9 +29,9 @@ CREATE TABLE [GD2C2022].[sale_worson].producto
 CREATE TABLE [GD2C2022].[sale_worson].producto_variante
 ( 
 	PV_CODIGO					nvarchar(100) PRIMARY KEY,
-	PV_VARIANTE					decimal,			-- FK a variante.VARIANTE_ID		--lo creamos nosotros
-	PV_PRODUCTO					nvarchar(100)		-- FK a producto.PRODUCTO_CODIGO	--lo creamos nosotros
-	PV_PRECIO_UNITARIO_ACTUAL	decimal(18,2)											--lo creamos nosotros
+	PV_VARIANTE					decimal(18,0),			-- FK a variante.VARIANTE_ID		--lo creamos nosotros
+	PV_PRODUCTO					nvarchar(100),		-- FK a producto.PRODUCTO_CODIGO	--lo creamos nosotros
+	PV_PRECIO_UNITARIO_ACTUAL	decimal(18,2),											--lo creamos nosotros
 	PV_STOCK_ACTUAL				decimal(18,0)											--lo creamos nosotros
 )
 
@@ -96,7 +97,7 @@ CREATE TABLE [GD2C2022].[sale_worson].cupon_venta
 	CUPON_VENTA_FECHA_FIN		date,
 	CUPON_VENTA_VALOR			decimal(18,2),
 	CUPON_VENTA_TIPO			nvarchar(100)
-	-- AGREGAR CONSTRAINT fecha desde < fecha hasta ?
+	
 )
 
 -------------------------------------------------------------------------------------------
@@ -141,7 +142,6 @@ CREATE TABLE [GD2C2022].[sale_worson].cliente
 	CLIENTE_LOCALIDAD			nvarchar(510),
 	CLIENTE_CODIGO_POSTAL		decimal(18,0),
 	CLIENTE_PROVINCIA			nvarchar(510),
-	--CONSTRAINT CON LA FECHAAA
 )
 
 -------------------------------------------------------------------------------------------
