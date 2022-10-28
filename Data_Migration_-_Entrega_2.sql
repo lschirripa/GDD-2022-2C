@@ -12,94 +12,134 @@ BEGIN TRANSACTION
 --COMMIT
 ROLLBACK*/
 
+-- Reset AutoIncrement
+DBCC CHECKIDENT ('sale_worson.Variante', RESEED, 0)
+DBCC CHECKIDENT ('sale_worson.Variante', RESEED, 0)
+
+
 -------------------------------------------------------- VARIANTE ------------------------
 
 BEGIN TRANSACTION
-	INSERT INTO [sale_worson].[variante]
-           ([VARIANTE_TIPO_]
-           ,[VARIANTE_DESCRIPCION])
-   
-	SELECT DISTINCT	
+	INSERT INTO sale_worson.Variante
+	SELECT DISTINCT 
 		PRODUCTO_TIPO_VARIANTE,
 		PRODUCTO_VARIANTE
-	
-		
 	FROM [gd_esquema].[Maestra]
-	WHERE PRODUCTO_TIPO_VARIANTE is not null
+	WHERE PRODUCTO_VARIANTE_CODIGO IS NOT NULL
 --COMMIT
 ROLLBACK
+
+----------------------------------
+SELECT * FROM sale_worson.Variante
+----------------------------------
 
 -------------------------------------------------------- PRODUCTO ------------------------
 
 BEGIN TRANSACTION
 	INSERT INTO [sale_worson].[producto]
-           ([PRODUCTO_CODIGO]
-           ,[PRODUCTO_NOMBRE]
-           ,[PRODUCTO_DESCRIPCION]
-           ,[PRODUCTO_MARCA]
-           ,[PRODUCTO_CATEGORIA]
-           ,[PRODUCTO_MATERIAL])
-   
+
 	SELECT DISTINCT 
-			PRODUCTO_CODIGO
-			,PRODUCTO_NOMBRE
-			,PRODUCTO_DESCRIPCION
-			,PRODUCTO_MARCA
-			,PRODUCTO_CATEGORIA
-			,PRODUCTO_MATERIAL 
+		PRODUCTO_CODIGO,
+		PRODUCTO_NOMBRE,
+		PRODUCTO_DESCRIPCION,
+		PRODUCTO_MARCA,
+		PRODUCTO_CATEGORIA,
+		PRODUCTO_MATERIAL
 		
 	FROM [gd_esquema].[Maestra]
 	WHERE PRODUCTO_CODIGO IS NOT NULL
 --COMMIT
 ROLLBACK
 
+--------------------------------------
+SELECT * FROM [sale_worson].[producto]
+--------------------------------------
 
 
 -------------------------------------------------------- PRODUCTO VARIANTE -----------------------
 BEGIN TRANSACTION
 INSERT INTO [sale_worson].[producto_variante]
-           ([PV_CODIGO]
-           ,[PV_VARIANTE]
-           ,[PV_PRODUCTO]
-           --,[PV_PRECIO_UNITARIO_ACTUAL]
-           --,[PV_STOCK_ACTUAL])
 
-	SELECT DISTINCT 
-	PRODUCTO_VARIANTE_CODIGO,
-	(select variante_Id from [sale_worson].variante
-	where PRODUCTO_TIPO_VARIANTE=variante.VARIANTE_TIPO_ 
-	and PRODUCTO_VARIANTE= variante.VARIANTE_DESCRIPCION) as PV_CODIGO ,
-	PRODUCTO_CODIGO as PV_PRODUCTO
-	-- precio,
-	--stock
-	FROM [gd_esquema].[Maestra]
-	WHERE PRODUCTO_CODIGO IS NOT NULL
-	
+	SELECT DISTINCT
+		maa.PRODUCTO_VARIANTE_CODIGO as PV_CODIGO,
+		v.VARIANTE_ID				 as PV_VARIANTE,
+		maa.PRODUCTO_CODIGO			 as PV_PRODUCTO,
+		maa.VENTA_PRODUCTO_PRECIO	 as PV_PRECIO_UNITARIO_ACTUAL,
+		(compra.CANTIDAD_COMPRADA - venta.CANTIDAD_VENDIDA) as STOCK
+	FROM [gd_esquema].[Maestra] maa
+
+	-- Join con COMPRA
+	INNER JOIN( 
+		SELECT DISTINCT
+			SUM(ISNULL(aa.COMPRA_PRODUCTO_CANTIDAD,0)) CANTIDAD_COMPRADA,
+			aa.PRODUCTO_VARIANTE_CODIGO
+		FROM [gd_esquema].[Maestra] aa
+		WHERE aa.PRODUCTO_VARIANTE_CODIGO IS NOT NULL
+		GROUP BY aa.PRODUCTO_VARIANTE_CODIGO
+
+	) compra
+	ON maa.PRODUCTO_VARIANTE_CODIGO = compra.PRODUCTO_VARIANTE_CODIGO
+
+	-- Join con VENTA
+	INNER JOIN(
+		SELECT DISTINCT
+			SUM(ISNULL(aa.VENTA_PRODUCTO_CANTIDAD,0)) CANTIDAD_VENDIDA,
+			aa.PRODUCTO_VARIANTE_CODIGO
+		FROM [gd_esquema].[Maestra] aa
+		WHERE aa.PRODUCTO_VARIANTE_CODIGO IS NOT NULL
+		GROUP BY aa.PRODUCTO_VARIANTE_CODIGO
+
+	)venta
+	ON maa.PRODUCTO_VARIANTE_CODIGO = venta.PRODUCTO_VARIANTE_CODIGO
+
+	-- Join para traernos la fecha mas reciente, para obtener el ultimo precio de venta
+	INNER JOIN 
+	(
+		SELECT 
+			d.PRODUCTO_VARIANTE_CODIGO,
+			MAX(d.VENTA_FECHA) as VENTA_MAS_RECIENTE
+		FROM [gd_esquema].[Maestra] d
+
+		WHERE VENTA_PRODUCTO_PRECIO IS NOT NULL AND PRODUCTO_VARIANTE_CODIGO IS NOT NULL
+		GROUP BY d.PRODUCTO_VARIANTE_CODIGO
+	) s
+	ON s.PRODUCTO_VARIANTE_CODIGO = maa.PRODUCTO_VARIANTE_CODIGO AND s.VENTA_MAS_RECIENTE = maa.VENTA_FECHA
+
+	-- Join para Unir con tabla Variante
+	INNER JOIN [sale_worson].[variante] v 
+	ON maa.PRODUCTO_TIPO_VARIANTE = v.VARIANTE_TIPO_ AND maa.PRODUCTO_VARIANTE = v.VARIANTE_DESCRIPCION
+
+
 --COMMIT
 ROLLBACK
--------------------------------------------------------- VENTA DETALLE -------------------------
+
+
+-----------------------------------------------
+SELECT * FROM [sale_worson].[producto_variante]
+-----------------------------------------------
+
 
 -------------------------------------------------------- MEDIO ENVIO   -------------------------
 BEGIN TRANSACTION
 	INSERT INTO [sale_worson].[medio_envio]
-           ([MEDIO_ENVIO_DESCRIPCION]
-           ,[MEDIO_ENVIO_PRECIO])
   
 	SELECT DISTINCT 
-			VENTA_MEDIO_ENVIO
-           ,VENTA_ENVIO_PRECIO
+		VENTA_MEDIO_ENVIO,
+		VENTA_ENVIO_PRECIO
 	FROM [gd_esquema].[Maestra]
 	WHERE VENTA_MEDIO_ENVIO IS NOT NULL
+
 --COMMIT
 ROLLBACK
 
-select * from [sale_worson].[medio_envio]
+-----------------------------------------
+SELECT * FROM [sale_worson].[medio_envio]
+-----------------------------------------
+
+
 -------------------------------------------------------- CANAL VENTA   -------------------------
 BEGIN TRANSACTION
 	INSERT INTO [sale_worson].[canal_venta]
-           ([CANAL_VENTA_COSTO]
-           ,[CANAL_VENTA_DESCRIPCION])
-  
   
 	SELECT DISTINCT 
 			VENTA_CANAL_COSTO,
@@ -109,82 +149,35 @@ BEGIN TRANSACTION
 --COMMIT
 ROLLBACK
 
+-----------------------------------------
+SELECT * FROM [sale_worson].[canal_venta]
+-----------------------------------------
 
--------------------------------------------------------- COMPRA DETALLE-------------------------
 
-
--------------------------------------------------------- VENTA   -------------------------------
-BEGIN TRANSACTION
-	INSERT INTO [sale_worson].[venta]
-           ([VENTA_CODIGO]
-           ,[VENTA_FECHA]
-           ,[VENTA_MEDIO_PAGO]
-           ,[VENTA_MEDIO_ENVIO]
-           ,[VENTA_CANAL]
-           ,[VENTA_CLIENTE]
-           ,[VENTA_TOTAL])
-  
-	SELECT DISTINCT 
-			VENTA_CODIGO
-			,VENTA_FECHA
-			,(select MEDIO_PAGO_ID from [sale_worson].medio_pago
-			where VENTA_MEDIO_PAGO = medio_pago.MEDIO_PAGO_DESCRIPCION
-			and VENTA_MEDIO_PAGO_COSTO= medio_pago.[MEDIO_PAGO_COSTO]) as VENTA_MEDIO_PAGO
-			,(select MEDIO_ENVIO_ID from [sale_worson].medio_envio
-			where VENTA_MEDIO_ENVIO = medio_envio.MEDIO_ENVIO_DESCRIPCION 
-			and VENTA_ENVIO_PRECIO = medio_envio.MEDIO_ENVIO_PRECIO) as VENTA_MEDIO_ENVIO
-			,(SELECT CLIENTE_ID from [sale_worson].[cliente]
-			where CLIENTE_NOMBRE = cliente.CLIENTE_NOMBRE
-           and CLIENTE_APELLIDO = cliente.CLIENTE_APELLIDO
-           and CLIENTE_DNI= cliente.CLIENTE_DNI
-           and CLIENTE_DIRECCION = cliente.CLIENTE_DIRECCION
-           and CLIENTE_TELEFONO = cliente.CLIENTE_TELEFONO
-           and CLIENTE_MAIL = cliente.CLIENTE_MAIL
-           and CLIENTE_FECHA_NAC = cliente.CLIENTE_FECHA_NAC
-           and CLIENTE_LOCALIDAD = cliente.CLIENTE_LOCALIDAD
-           and CLIENTE_CODIGO_POSTAL = cliente.CLIENTE_CODIGO_POSTAL
-           and CLIENTE_PROVINCIA= cliente.CLIENTE_PROVINCIA) as VENTA_CLIENTE,
-		   VENTA_TOTAL
-
-	FROM [gd_esquema].[Maestra]
-	WHERE CLIENTE_NOMBRE is  not null and CLIENTE_APELLIDO is not null
---COMMIT
-ROLLBACK
-
-SELECT * FROM [sale_worson].[medio_pago]
--------------------------------------------------------- COMPRA  -------------------------------
-
--------------------------------------------------------- VENTA X CUPON -------------------------
--------------------------------------------------------- VENTA X DESCUENTO ---------------------
 -------------------------------------------------------- MEDIO PAGO ----------------------------
 BEGIN TRANSACTION
 	INSERT INTO [sale_worson].[medio_pago]
-           ([MEDIO_PAGO_DESCRIPCION]
-           ,[MEDIO_PAGO_COSTO])
-   
+
 	SELECT DISTINCT 
-			VENTA_MEDIO_PAGO
-			,VENTA_MEDIO_PAGO_COSTO
+		VENTA_MEDIO_PAGO,
+		VENTA_MEDIO_PAGO_COSTO
 		
 	FROM [gd_esquema].[Maestra]
-	WHERE VENTA_MEDIO_PAGO is not null
+	WHERE VENTA_MEDIO_PAGO IS NOT NULL
+
 --COMMIT
 ROLLBACK
+
+----------------------------------------
+SELECT * FROM [sale_worson].[medio_pago]
+----------------------------------------
+
+
 -------------------------------------------------------- CLIENTE  ------------------------------
 
 BEGIN TRANSACTION
 	
    INSERT INTO [sale_worson].[cliente]
-           ([CLIENTE_NOMBRE]
-           ,[CLIENTE_APELLIDO]
-           ,[CLIENTE_DNI]
-           ,[CLIENTE_DIRECCION]
-           ,[CLIENTE_TELEFONO]
-           ,[CLIENTE_MAIL]
-           ,[CLIENTE_FECHA_NAC]
-           ,[CLIENTE_LOCALIDAD]
-           ,[CLIENTE_CODIGO_POSTAL]
-           ,[CLIENTE_PROVINCIA])
 
 	SELECT DISTINCT 
 			CLIENTE_NOMBRE 
@@ -199,10 +192,70 @@ BEGIN TRANSACTION
            ,CLIENTE_PROVINCIA
 		
 	FROM [gd_esquema].[Maestra]
-	WHERE CLIENTE_NOMBRE is not null and CLIENTE_APELLIDO is not null
+	WHERE CLIENTE_NOMBRE IS NOT NULL AND CLIENTE_APELLIDO IS NOT NULL
+
 --COMMIT
 ROLLBACK
 
+-------------------------------------
+SELECT * FROM [sale_worson].[cliente]
+-------------------------------------
+
+
+-------------------------------------------------------- VENTA   -------------------------------
+BEGIN TRANSACTION
+	INSERT INTO [sale_worson].[venta]
+	  
+	SELECT DISTINCT 
+		ma.VENTA_CODIGO,
+		ma.VENTA_FECHA,
+		mp.MEDIO_PAGO_ID as VENTA_MEDIO_PAGO,
+		me.MEDIO_ENVIO_ID as VENTA_MEDIO_ENVIO,
+		cv.CANAL_VENTA_ID as VENTA_CANAL,
+		c.CLIENTE_ID as VENTA_CLIENTE,
+		ma.VENTA_TOTAL
+	FROM [gd_esquema].[Maestra] ma
+
+	INNER JOIN [sale_worson].medio_pago mp
+	ON ma.VENTA_MEDIO_PAGO = mp.MEDIO_PAGO_DESCRIPCION AND ma.VENTA_MEDIO_PAGO_COSTO= mp.MEDIO_PAGO_COSTO
+
+	INNER JOIN [sale_worson].MEDIO_ENVIO me
+	ON ma.VENTA_MEDIO_ENVIO = me.MEDIO_ENVIO_DESCRIPCION AND ma.VENTA_ENVIO_PRECIO = me.MEDIO_ENVIO_PRECIO
+
+	INNER JOIN [sale_worson].[canal_venta] cv
+	ON ma.VENTA_CANAL_COSTO = cv.CANAL_VENTA_COSTO AND ma.VENTA_CANAL = cv.CANAL_VENTA_DESCRIPCION
+
+	INNER JOIN [sale_worson].[cliente] c
+	ON		ma.CLIENTE_NOMBRE		= c.CLIENTE_NOMBRE
+		AND ma.CLIENTE_APELLIDO		= c.CLIENTE_APELLIDO
+		AND ma.CLIENTE_DNI			= c.CLIENTE_DNI
+		AND ma.CLIENTE_DIRECCION	= c.CLIENTE_DIRECCION
+		AND ma.CLIENTE_TELEFONO		= c.CLIENTE_TELEFONO
+		AND ma.CLIENTE_MAIL			= c.CLIENTE_MAIL
+		AND ma.CLIENTE_FECHA_NAC	= c.CLIENTE_FECHA_NAC
+		AND ma.CLIENTE_LOCALIDAD	= c.CLIENTE_LOCALIDAD
+		AND ma.CLIENTE_CODIGO_POSTAL= c.CLIENTE_CODIGO_POSTAL
+		AND ma.CLIENTE_PROVINCIA	= c.CLIENTE_PROVINCIA
+
+--COMMIT
+ROLLBACK
+
+-- Si dejamos las subconsultas resulta mucho menos performante (1min contra 3seg)
+
+-----------------------------------
+SELECT * FROM [sale_worson].[venta]
+-----------------------------------
+
+-------------------------------------------------------- VENTA DETALLE -------------------------
+
+-------------------------------------------------------- COMPRA DETALLE-------------------------
+
+-------------------------------------------------------- COMPRA  -------------------------------
+
+
+
+-------------------------------------------------------- VENTA X CUPON -------------------------
+-------------------------------------------------------- VENTA X DESCUENTO ---------------------
 
 
 -------------------------------------------------------- COMPRA X DESCUENTO --------------------
