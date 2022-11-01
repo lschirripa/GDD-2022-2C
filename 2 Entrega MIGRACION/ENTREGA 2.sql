@@ -25,7 +25,7 @@ GO
 -- Create date: 10/26
 -- Description:	sp para crear las tablas
 -- =============================================
-CREATE PROCEDURE prc_creacion_de_tablas
+CREATE PROCEDURE [sale_worson].prc_creacion_de_tablas
 	-- Add the parameters for the stored procedure here
 	--
 AS
@@ -261,7 +261,7 @@ GO
 -- Create date: 10/26
 -- Description:	sp para crear los constrains de las fk
 -- =============================================
-CREATE PROCEDURE prc_creacion_de_FK_constrains
+CREATE PROCEDURE [sale_worson].prc_creacion_de_FK_constrains
 	-- Add the parameters for the stored procedure here
 	--
 AS
@@ -397,7 +397,7 @@ GO
 -- Create date: 10/30
 -- Description:	sp para migrar los datos
 -- =============================================
-CREATE PROCEDURE prc_migracion
+CREATE PROCEDURE [sale_worson].prc_migracion
 	-- Add the parameters for the stored procedure here
 	--
 AS
@@ -842,6 +842,6 @@ GO
 -- ================================================
 
 
-EXEC [GD2C2022].[sale_worson].prc_creacion_de_tablas
-EXEC [GD2C2022].[sale_worson].prc_creacion_de_FK_constrains
-EXEC [GD2C2022].[sale_worson].prc_migracion
+EXEC [sale_worson].prc_creacion_de_tablas
+EXEC [sale_worson].prc_creacion_de_FK_constrains
+EXEC [sale_worson].prc_migracion
