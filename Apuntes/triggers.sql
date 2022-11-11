@@ -96,3 +96,8 @@ COMMIT
 UPDATE Provincia SET id=5 where id=1
 
 
+------ EJ TRIGGER 4
+
+-- Implementar el/los objetos y crear una lógica de negocio decontrol de uso de productos activos/inactivos. Esto significaque aquellos productos que no estén activos no puedan serusados en ninguna instancia del modelo de datos en ningunacircunstancia.
+
+
