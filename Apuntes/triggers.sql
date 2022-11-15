@@ -218,3 +218,47 @@ INSERT INTO FACTURA Values('A','010','00068711','2022-04-04 00:00:00',4,10,10,'0
 
 INSERT INTO FACTURA Values('B','0003','00087973','2022-04-04 00:00:00',4,10,10,'01634')
 
+
+
+/*
+pueda comprar más de 100 unidades en el mes de ningún producto, si esto
+ocurre no se deberá ingresar la operación y se deberá emitir un mensaje “Se ha
+superado el límite máximo de compra de un producto”. Se sabe que esta regla se
+cumple y que las facturas no pueden ser modificadas.
+*/
+
+CREATE TRIGGER trg_compra_max ON Item_Factura
+AFTER INSERT
+AS 
+BEGIN TRANSACTION
+
+    IF EXISTS(SELECT fi.fact_cliente FROM inserted i
+              JOIN FACTURA fi ON fi.fact_numero = i.item_numero AND fi.fact_tipo = i.item_tipo AND fi.fact_sucursal = i.item_sucursal 
+              WHERE fi.fact_cliente IN
+              
+              (
+                  SELECT f.fact_cliente FROM Factura F
+                    JOIN Item_Factura iff on iff.item_tipo = f.fact_tipo AND iff.item_sucursal = f.fact_sucursal AND iff.item_numero = f.fact_numero
+                    GROUP BY f.fact_cliente, CONVERT(CHAR(6), f.fact_fecha, 112)
+                    HAVING SUM(item_cantidad) > 100
+              )
+              
+              )
+    BEGIN
+        PRINT('YA COMPRO MAS DE 100 U')
+        ROLLBACK
+        RETURN
+    END
+
+
+
+COMMIT
+
+--PRUEBO
+
+BEGIN TRANSACTION
+INSERT INTO Item_Factura
+VALUES ('A','0003','00068710','00010200',50,0.5)
+
+
+
