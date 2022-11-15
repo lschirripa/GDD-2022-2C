@@ -13,7 +13,7 @@ UPDATE Cliente SET Cliente.pcia_id=1 WHERE clie_codigo = '00000'
 
 
 -- TRIGGERS
---  TABLAS INSERTED, DELETED 
+--  TABLAS INSERTED, DELETED [dbo].[Producto]
 -- el update tiene las 2
 
 
@@ -100,4 +100,121 @@ UPDATE Provincia SET id=5 where id=1
 
 -- Implementar el/los objetos y crear una lógica de negocio decontrol de uso de productos activos/inactivos. Esto significaque aquellos productos que no estén activos no puedan serusados en ninguna instancia del modelo de datos en ningunacircunstancia.
 
+
+ALTER TABLE Producto 
+ADD activo CHAR(1)
+-- lo ideal hubiese sido ALTER TABLE PRODUCTO ADD activo bit default 1
+
+UPDATE PRODUCTO 
+SET activo='N'
+WHERE prod_codigo='00000033'
+
+ALTER TRIGGER tr_4 on PRODUCTO
+AFTER UPDATE
+AS
+SET TRANSACTION ISOLATION LEVEL READ COMMITTED
+BEGIN TRANSACTION
+
+    IF EXISTS (
+        SELECT d.Activo FROM deleted d WHERE d.Activo = 'N'
+        )
+        BEGIN
+        PRINT('NO se puede modificar un producto inactivo')
+        ROLLBACK
+        RETURN
+        END
+
+COMMIT
+
+
+CREATE TRIGGER tr_5 on Item_Factura
+AFTER UPDATE
+AS
+SET TRANSACTION ISOLATION LEVEL READ COMMITTED
+BEGIN TRANSACTION
+
+    IF EXISTS (
+        SELECT 1 FROM deleted d
+        JOIN Producto P ON P.prod_codigo = d.item_producto 
+        WHERE P.Activo = 'N'
+        )
+        BEGIN
+        PRINT('NO se puede modificar un producto inactivo')
+        ROLLBACK
+        RETURN
+        END
+
+COMMIT
+
+----pruebo trig4
+--no me tiene q dejar
+UPDATE Producto SET prod_precio = 1 WHERE prod_codigo = '00000032'
+
+begin TRANSACTION
+DELETE Producto WHERE prod_codigo = '00000032'
+ROLLBACK
+-- me tiene q dejar
+BEGIN TRANSACTION
+UPDATE Producto SET prod_precio = 1 WHERE prod_codigo = '00000031'
+ROLLBACK
+
+-----pruebo trig 5------ no me tiene q dejar
+UPDATE PRODUCTO 
+SET activo='N'
+WHERE prod_codigo='00001415'
+
+BEGIN TRANSACTION
+UPDATE Item_Factura SET item_precio = 1 WHERE item_numero = '00092444'
+--ROLLBACK
+
+
+
+
+
+-- Implementar el/los objetos necesarios para que cada vez que se genere una venta,
+-- si existe un producto compuesto, descuente del STOCK los componentes.
+
+
+ALTER TRIGGER descontar_stock on FACTURA
+AFTER INSERT
+AS 
+--SET TRANSACTION ISOLATION LEVEL READ COMMITTED
+BEGIN TRANSACTION
+
+    DECLARE @var1 VARCHAR(100)
+    SET @var1 = (select top 1 producto.prod_codigo from inserted i
+                JOIN Item_Factura on i.fact_numero = Item_Factura.item_numero
+                JOIN Producto on Producto.prod_codigo = Item_Factura.item_producto
+                )
+    print(@var1)
+
+    IF EXISTS(
+            SELECT comp_producto from Composicion
+            WHERE comp_producto = @var1
+            )
+    BEGIN
+
+        PRINT('se ha actualizado el stock de la composicion del producto')
+        UPDATE STOCK SET stoc_cantidad = (stoc_cantidad - 1) WHERE stoc_producto = @var1
+
+    END
+    ELSE print('no se vendio un producto con compuestos')
+
+
+COMMIT
+
+-- elegi el producto 102, para darme cuenta cual es su item numero use esta query
+select item_numero from Item_Factura
+JOIN Producto on item_producto = Producto.prod_codigo
+where prod_codigo = '00001707'
+
+select f.fact_numero,item_numero, prod_codigo from Factura f 
+join Item_Factura iff on  iff.item_numero = f.fact_numero
+join Producto on item_producto = prod_codigo 
+where prod_codigo = '00001707'
+
+-- pruebo descontar stock
+INSERT INTO FACTURA Values('A','010','00068711','2022-04-04 00:00:00',4,10,10,'01634')
+
+INSERT INTO FACTURA Values('B','0003','00087973','2022-04-04 00:00:00',4,10,10,'01634')
 
