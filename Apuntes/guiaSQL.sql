@@ -306,50 +306,50 @@
 
 --mi solucion q creo q es la mejor de todas dios mio las demas son horribles
 
-SELECT 
-    Fam.fami_detalle,
-    count(distinct iff.item_producto) AS cant_productos_distintos,
-    sum(iff.item_cantidad*iff.item_precio) AS monto_ventas_total
-    FROM FAMILIA fam
-JOIN Producto P ON p.prod_familia = fam.fami_id
-JOIN Item_Factura iff ON iff.item_producto = p.prod_codigo
-JOIN Factura F ON f.fact_numero+f.fact_sucursal+f.fact_tipo = iff.item_numero+iff.item_sucursal+iff.item_tipo
+-- SELECT 
+--     Fam.fami_detalle,
+--     count(distinct iff.item_producto) AS cant_productos_distintos,
+--     sum(iff.item_cantidad*iff.item_precio) AS monto_ventas_total
+--     FROM FAMILIA fam
+-- JOIN Producto P ON p.prod_familia = fam.fami_id
+-- JOIN Item_Factura iff ON iff.item_producto = p.prod_codigo
+-- JOIN Factura F ON f.fact_numero+f.fact_sucursal+f.fact_tipo = iff.item_numero+iff.item_sucursal+iff.item_tipo
 
-WHERE fami_id IN 
-(
-    SELECT 
-        fam2.fami_id
-        FROM FAMILIA Fam2
-    JOIN Producto P2 on P2.prod_familia = FAM2.fami_id
-    JOIN Item_Factura iff2 ON iff2.item_producto = p2.prod_codigo
-    JOIN Factura F2 ON f2.fact_numero+f2.fact_sucursal+f2.fact_tipo = iff2.item_numero+iff2.item_sucursal+iff2.item_tipo
-    WHERE YEAR(f2.fact_fecha) = 2012
-    GROUP BY Fam2.fami_detalle, fam2.fami_id    
-    HAVING sum(iff2.item_cantidad*iff2.item_precio) > 20000
-)
+-- WHERE fami_id IN 
+-- (
+--     SELECT 
+--         fam2.fami_id
+--         FROM FAMILIA Fam2
+--     JOIN Producto P2 on P2.prod_familia = FAM2.fami_id
+--     JOIN Item_Factura iff2 ON iff2.item_producto = p2.prod_codigo
+--     JOIN Factura F2 ON f2.fact_numero+f2.fact_sucursal+f2.fact_tipo = iff2.item_numero+iff2.item_sucursal+iff2.item_tipo
+--     WHERE YEAR(f2.fact_fecha) = 2012
+--     GROUP BY Fam2.fami_detalle, fam2.fami_id    
+--     HAVING sum(iff2.item_cantidad*iff2.item_precio) > 20000
+-- )
 
-GROUP BY Fam.fami_detalle
-ORDER BY count(distinct p.prod_codigo) DESC
+-- GROUP BY Fam.fami_detalle
+-- ORDER BY count(distinct p.prod_codigo) DESC
 
 ------------------------otra solucion malarda---------------------------
 
 
-SELECT fami_detalle, COUNT(DISTINCT prod_codigo) as cant_prod, SUM(item_precio * item_cantidad) as monto_ventas
-FROM Familia fam
-	 JOIN Producto p ON fami_id = prod_familia
-	 JOIN Item_Factura i ON prod_codigo = item_producto
-	 JOIN Factura fac ON item_numero = fact_numero
-				 AND item_tipo = fact_tipo
-				 AND item_sucursal = fact_sucursal
-GROUP BY fami_detalle,fami_id
-HAVING
-		EXISTS(SELECT TOP 1 fact_numero, fact_tipo, fact_sucursal
-		FROM Factura JOIN Item_Factura ON fact_sucursal=item_sucursal AND fact_tipo=item_tipo AND fact_numero=item_numero
-					 JOIN Producto ON item_producto = prod_codigo
-		WHERE YEAR(fact_fecha)=2012 AND prod_familia='002' --fam.fami_id
-		GROUP BY fact_numero, fact_tipo, fact_sucursal
-		HAVING SUM(item_precio * item_cantidad)>20000)
-ORDER BY monto_ventas DESC
+-- SELECT fami_detalle, COUNT(DISTINCT prod_codigo) as cant_prod, SUM(item_precio * item_cantidad) as monto_ventas
+-- FROM Familia fam
+-- 	 JOIN Producto p ON fami_id = prod_familia
+-- 	 JOIN Item_Factura i ON prod_codigo = item_producto
+-- 	 JOIN Factura fac ON item_numero = fact_numero
+-- 				 AND item_tipo = fact_tipo
+-- 				 AND item_sucursal = fact_sucursal
+-- GROUP BY fami_detalle,fami_id
+-- HAVING
+-- 		EXISTS(SELECT TOP 1 fact_numero, fact_tipo, fact_sucursal
+-- 		FROM Factura JOIN Item_Factura ON fact_sucursal=item_sucursal AND fact_tipo=item_tipo AND fact_numero=item_numero
+-- 					 JOIN Producto ON item_producto = prod_codigo
+-- 		WHERE YEAR(fact_fecha)=2012 AND prod_familia='002' --fam.fami_id
+-- 		GROUP BY fact_numero, fact_tipo, fact_sucursal
+-- 		HAVING SUM(item_precio * item_cantidad)>20000)
+-- ORDER BY monto_ventas DESC
 
 -------------------------------------------------------------------------
 
@@ -366,13 +366,210 @@ ORDER BY monto_ventas DESC
 -- Los datos deberan ser ordenados por año y por producto con mayor cantidad vendida.
 
 
-SELECT DISTINCT
-    P.prod_codigo,
-    p.prod_detalle,
-    YEAR(fact_fecha)
+-- SELECT DISTINCT
+--     P.prod_codigo,
+--     p.prod_detalle,
+--     YEAR(f.fact_fecha) AS año,
 
-    FROM PRODUCTO P
-JOIN Item_Factura iff ON iff.item_producto = p.prod_codigo
-JOIN Factura F ON f.fact_numero+f.fact_sucursal+f.fact_tipo = iff.item_numero+iff.item_sucursal+iff.item_tipo
+--     (
+--         SELECT
+--             count(F2.fact_numero)
+--             FROM Producto p2
+--         JOIN Item_Factura iff2 ON iff2.item_producto = p2.prod_codigo
+--         JOIN Factura F2 ON f2.fact_numero+f2.fact_sucursal+f2.fact_tipo = iff2.item_numero+iff2.item_sucursal+iff2.item_tipo
+--         WHERE p2.prod_codigo = P.prod_codigo AND YEAR(f2.fact_fecha) = YEAR(f.fact_fecha)
+            
+--     ) AS Facturas_emitidas_en_el_año,
 
-ORDER BY p.prod_codigo
+--     (
+--         SELECT
+--             count(DISTINCT f2.fact_vendedor)
+--             from factura f2
+--         JOIN Item_Factura iff2 ON f2.fact_numero+f2.fact_sucursal+f2.fact_tipo = iff2.item_numero+iff2.item_sucursal+iff2.item_tipo
+--         JOIN Producto p2 ON P.prod_codigo = iff2.item_producto
+--         WHERE iff2.item_producto = IFF.item_producto AND YEAR(F2.fact_fecha) = YEAR(F.fact_fecha)
+--         GROUP BY IFF2.item_producto, YEAR(F2.fact_fecha) 
+--     ) AS vendedores_distintos,
+
+--     ISNULL((
+--         SELECT 
+--             count(*)
+--             FROM Composicion c2
+--         WHERE c2.comp_componente = p.prod_codigo
+--     ),0) AS productos_que_compone,
+
+--     (
+--     (
+--         SUM(iff.item_cantidad*iff.item_precio)
+--     ) *100 /
+--     (
+--     SELECT 
+--         sum(F2.fact_total)
+--         FROM Factura F2
+--     JOIN Item_Factura iff2 on f2.fact_numero+f2.fact_sucursal+f2.fact_tipo = iff2.item_numero+iff2.item_sucursal+iff2.item_tipo
+--     WHERE YEAR(F2.fact_fecha) = YEAR(F.fact_fecha)
+--     )
+--     ) AS porcentaje_sobre_total_ventas_en_el_año
+
+--     FROM PRODUCTO P
+-- JOIN Item_Factura iff ON iff.item_producto = p.prod_codigo
+-- JOIN Factura F ON f.fact_numero+f.fact_sucursal+f.fact_tipo = iff.item_numero+iff.item_sucursal+iff.item_tipo
+-- GROUP BY P.prod_codigo,
+--     p.prod_detalle,
+--     YEAR(f.fact_fecha),
+--     iff.item_producto
+-- ORDER BY YEAR(f.fact_fecha)
+
+
+-- -------otra solucion distintos valores, seguro esta mal
+
+
+-- SELECT YEAR(F.fact_fecha) AS [Año]
+-- 	,P.prod_codigo
+-- 	,P.prod_detalle
+-- 	,COUNT(DISTINCT F.fact_tipo+F.fact_sucursal+F.fact_numero) AS [Cant Facturas]
+-- 	,COUNT(DISTINCT F.fact_vendedor) AS [Cant vendedores diferentes del prod]
+-- 	,(
+-- 		SELECT COUNT(comp_componente)
+-- 		FROM Composicion
+-- 		WHERE comp_componente = P.prod_codigo
+-- 	) AS [Cant de prods que compone]
+-- 	,(
+-- 		(SUM(IFACT.item_precio*IFACT.item_cantidad)
+-- 		* 100)
+-- 		/
+-- 		(
+-- 			SELECT SUM(item_precio*item_cantidad)
+-- 			FROM Item_Factura
+-- 				INNER JOIN Factura
+-- 					ON fact_tipo = item_tipo AND fact_sucursal = item_sucursal AND fact_numero = fact_numero
+-- 			WHERE YEAR(fact_fecha) = YEAR(F.fact_fecha)
+-- 		)
+-- 	) AS [Porcentaje de venta sobre el total]
+-- 	FROM Producto P
+-- 		INNER JOIN Item_Factura IFACT
+-- 			ON IFACT.item_producto = P.prod_codigo
+-- 		INNER JOIN Factura F
+-- 			ON F.fact_tipo = IFACT.item_tipo AND F.fact_sucursal = IFACT.item_sucursal AND F.fact_numero = IFACT.item_numero
+-- GROUP BY YEAR(F.fact_fecha),P.prod_codigo,P.prod_detalle
+-- ORDER BY 1, SUM(IFACT.item_cantidad) DESC
+
+-- 34. Escriba una consulta sql que retorne para todos los rubros la cantidad de facturas mal
+-- facturadas por cada mes del año 2011 Se considera que una factura es incorrecta cuando
+-- en la misma factura se factutan productos de dos rubros diferentes. Si no hay facturas
+-- mal hechas se debe retornar 0. Las columnas que se deben mostrar son:
+
+-- 1- Codigo de Rubro
+-- 2- Mes
+-- 3- Cantidad de facturas mal realizadas.
+
+-- SELECT P.prod_rubro AS [Rubro]
+-- 	,MONTH(F.fact_fecha) AS [MES]
+-- 	,COUNT(DISTINCT F.fact_tipo+F.fact_sucursal+F.fact_numero) AS [Fact mal realizadas]
+-- FROM Producto P
+-- 	INNER JOIN Item_Factura IFACT
+-- 		ON IFACT.item_producto = P.prod_codigo
+-- 	INNER JOIN Factura F
+-- 		ON F.fact_tipo = IFACT.item_tipo AND F.fact_sucursal = IFACT.item_sucursal AND F.fact_numero = IFACT.item_numero
+-- WHERE YEAR(F.fact_fecha) = 2011 AND (
+-- 										SELECT COUNT(DISTINCT prod_rubro)
+-- 										FROM Producto
+-- 											INNER JOIN Item_Factura
+-- 												ON item_producto = prod_codigo
+-- 										WHERE item_tipo+item_sucursal+item_numero = IFACT.item_tipo+IFACT.item_sucursal+IFACT.item_numero
+-- 										GROUP BY item_tipo+item_sucursal+item_numero
+-- 										) > 1
+-- GROUP BY P.prod_rubro, MONTH(F.fact_fecha)
+-- ORDER BY 1
+
+
+-- 33. Se requiere obtener una estadística de venta de productos que sean componentes. Para
+-- ello se solicita que realiza la siguiente consulta que retorne la venta de los
+-- componentes del producto más vendido del año 2012. Se deberá mostrar:
+-- a. Código de producto
+-- b. Nombre del producto
+-- c. Cantidad de unidades vendidas
+-- d. Cantidad de facturas en la cual se facturo
+-- e. Precio promedio facturado de ese producto.
+-- f. Total facturado para ese producto
+-- El resultado deberá ser ordenado por el total vendido por producto para el año 2012.
+
+-- SELECT distinct
+--     c.comp_componente,
+--     p.prod_detalle,
+
+-- (
+--     SELECT
+--         isnull(sum(IFF2.item_cantidad),0)
+--         FROM Item_Factura iff2 
+--     JOIN Factura F2 ON f2.fact_numero+f2.fact_sucursal+f2.fact_tipo = iff2.item_numero+iff2.item_sucursal+iff2.item_tipo
+--     WHERE iff2.item_producto = c.comp_componente
+-- ) AS CANT_VENDIDA,
+
+-- (
+--     SELECT 
+--         count(iff2.item_numero)
+--         FROM Item_Factura iff2
+--     JOIN FACTURA F2 ON f2.fact_numero+f2.fact_sucursal+f2.fact_tipo = iff2.item_numero+iff2.item_sucursal+iff2.item_tipo
+--     where iff2.item_producto = c.comp_componente
+-- ) AS facturas_emitidas,
+
+-- (
+--     SELECT 
+--         ISNULL(AVG(IFF2.item_precio),0)
+--         FROM Item_Factura IFF2
+--     JOIN FACTURA F2 ON f2.fact_numero+f2.fact_sucursal+f2.fact_tipo = iff2.item_numero+iff2.item_sucursal+iff2.item_tipo
+--     WHERE IFF2.item_producto = C.comp_componente
+-- ) AS precio_promedio,
+
+-- (
+--     SELECT
+--         isnull(sum(IFF2.item_cantidad * iff2.item_precio),0)
+--     FROM Item_Factura iff2
+--     WHERE iff2.item_producto = comp_componente
+-- ) AS total_vendido
+
+--     FROM Composicion C
+-- JOIN Producto P ON c.comp_componente = p.prod_codigo
+
+-- WHERE C.comp_producto = 
+--             (
+--             SELECT TOP 1
+--                 P2.prod_codigo
+--                 FROM Producto P2
+--             JOIN Item_Factura iff2 ON IFF2.item_producto = p2.prod_codigo
+--             JOIN FACTURA F2 ON f2.fact_numero+f2.fact_sucursal+f2.fact_tipo = iff2.item_numero+iff2.item_sucursal+iff2.item_tipo
+--             WHERE YEAR(F2.fact_fecha) = 2012
+--             GROUP BY p2.prod_codigo
+--             order by SUM(Iff2.item_cantidad) DESC  
+--             )
+
+-- ORDER BY total_vendido DESC
+
+
+----otrqa solucion pero no sale el otro componente
+-- SELECT P.prod_codigo
+-- 	,P.prod_detalle
+-- 	,SUM(IFACT.item_cantidad) AS [Cantidad unidades vendidas]
+-- 	,COUNT(DISTINCT IFACT.item_numero+IFACT.item_tipo+IFACT.item_sucursal) [Cant fact realizadas]
+-- 	,AVG(IFACT.item_precio) [Precio promedio facturado]
+-- 	,SUM(IFACT.item_precio*IFACT.item_cantidad) [Total Facturado]
+-- FROM Producto P
+-- 	INNER JOIN Composicion C
+-- 		ON C.comp_componente = P.prod_codigo
+-- 	INNER JOIN Producto COMBO
+-- 		ON COMBO.prod_codigo = C.comp_producto
+-- 	INNER JOIN Item_Factura IFACT
+-- 		ON IFACT.item_producto = P.prod_codigo
+-- 	INNER JOIN Factura F
+-- 		ON F.fact_numero = IFACT.item_numero AND F.fact_tipo = IFACT.item_tipo AND F.fact_sucursal = IFACT.item_sucursal
+-- WHERE C.comp_producto = (
+-- 							SELECT TOP 1 item_producto
+-- 							FROM Item_Factura
+-- 								INNER JOIN Factura
+-- 									ON fact_numero = item_numero AND fact_tipo = item_tipo AND fact_sucursal = item_sucursal
+-- 							WHERE item_producto IN (SELECT comp_producto FROM Composicion) AND YEAR(fact_fecha) = 2012
+-- 							GROUP BY item_producto
+-- 							ORDER BY SUM(item_cantidad) DESC
+-- 							)
+-- GROUP BY P.prod_codigo,P.prod_detalle
