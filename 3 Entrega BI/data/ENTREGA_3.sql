@@ -8,14 +8,12 @@ BEGIN
 END
 GO
 
--- ================================================
--- ================================================
--- ================================================
--- ============SP DECREACION DE TABLAS=============
--- ================================================
--- ================================================
--- ================================================
--- ================================================
+-- ================================================================================================
+-- ================================================================================================
+-- ============================== SP CREACION CREACIÓN DE TABLAS ==================================
+-- ================================================================================================
+-- ================================================================================================
+
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -61,6 +59,15 @@ BEGIN
 	(
 		MATERIAL_ID				decimal PRIMARY KEY IDENTITY(1,1),	--lo creamos nosotros
 		MATERIAL_NOMBRE			nvarchar(100),
+	)
+
+	-------------------------------------------------------------------------------------------
+
+		CREATE TABLE [GD2C2022].[sale_worson].ubicacion
+	(
+		UBICACION_ID			decimal PRIMARY KEY IDENTITY(1,1),	--lo creamos nosotros
+		UBICACION_PROVINCIA		nvarchar(100),
+		UBICACION_CP			decimal(18,0),
 	)
 
 	-------------------------------------------------------------------------------------------
@@ -128,7 +135,8 @@ BEGIN
 	(
 		MEDIO_ENVIO_ID				decimal PRIMARY KEY IDENTITY(1,1), --lo creamos nosotros
 		MEDIO_ENVIO_DESCRIPCION		nvarchar(510),
-		MEDIO_ENVIO_PRECIO			decimal(18,2)
+		MEDIO_ENVIO_PRECIO			decimal(18,2),
+		MEDIO_ENVIO_UBICACION		decimal
 	)
 
 	-------------------------------------------------------------------------------------------
@@ -191,14 +199,6 @@ BEGIN
 
 	-------------------------------------------------------------------------------------------
 
-	CREATE TABLE [GD2C2022].[sale_worson].provincia
-	(
-		PROVINCIA_ID				decimal PRIMARY KEY IDENTITY(1,1),	--lo creamos nosotros
-		PROVINCIA_NOMBRE			nvarchar(100), 
-	)
-
-	-------------------------------------------------------------------------------------------
-
 	CREATE TABLE [GD2C2022].[sale_worson].cliente
 	(
 		CLIENTE_ID					decimal PRIMARY KEY IDENTITY(1,1),	--lo creamos nosotros
@@ -210,8 +210,7 @@ BEGIN
 		CLIENTE_MAIL				nvarchar(510),
 		CLIENTE_FECHA_NAC			date,
 		CLIENTE_LOCALIDAD			nvarchar(510),
-		CLIENTE_CODIGO_POSTAL		decimal(18,0),
-		CLIENTE_PROVINCIA			decimal,							 --Lo creamos nosotros
+		CLIENTE_UBICACION			decimal,							 --Lo creamos nosotros
 	)
 
 	-------------------------------------------------------------------------------------------
@@ -230,11 +229,12 @@ BEGIN
 
 	CREATE TABLE [GD2C2022].[sale_worson].compra_detalle
 	(
+		CD_ID						decimal PRIMARY KEY IDENTITY(1,1),	--lo creamos nosotros
 		CD_COMPRA					decimal(18,0) ,		--FK a compra.COMPRA_NUMERO				--lo creamos nosotros
 		CD_PV						nvarchar(100),		--FK a producto_variante.PV_CODIGO		--lo creamos nosotros
 		CD_CANTIDAD					decimal(18,0),
-		CD_PRECIO					decimal(18,2),
-		PRIMARY KEY (CD_COMPRA, CD_PV)
+		CD_PRECIO					decimal(18,2)
+		--PRIMARY KEY (CD_COMPRA, CD_PV)
 	)
 
 	-------------------------------------------------------------------------------------------
@@ -264,8 +264,8 @@ BEGIN
 		PROVEEDOR_DOMICILIO		nvarchar(100),
 		PROVEEDOR_MAIL			nvarchar(100),
 		PROVEEDOR_LOCALIDAD		nvarchar(100),
-		PROVEEDOR_CODIGO_POSTAL decimal(18,2),
-		PROVEEDOR_PROVINCIA		decimal,							--lo creamos nosotros
+		PROVEEDOR_PROVINCIA		nvarchar(100),
+		PROVEEDOR_CP			decimal(18,0)
 	)
 
 	-------------------------------------------------------------------------------------------
@@ -275,15 +275,12 @@ BEGIN
 END
 GO
 
+-- ================================================================================================
+-- ================================================================================================
+-- ================================= SP CREACION DE CONSTRAINTS ===================================
+-- ================================================================================================
+-- ================================================================================================
 
--- ================================================
--- ================================================
--- ================================================
--- ============SP CREACION DE CONSTRAINS===========
--- ================================================
--- ================================================
--- ================================================
--- ================================================
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -309,14 +306,8 @@ BEGIN
 
 	
 	ALTER TABLE [GD2C2022].[sale_worson].Cliente
-	ADD CONSTRAINT FK_ClienteProvincia
-	FOREIGN KEY (CLIENTE_PROVINCIA) REFERENCES [GD2C2022].[sale_worson].PROVINCIA(PROVINCIA_ID)
-
-	-----/////////////////////////////////////////////////////////////////////////-----
-
-	ALTER TABLE [GD2C2022].[sale_worson].Proveedor
-	ADD CONSTRAINT FK_ProveedorProvincia
-	FOREIGN KEY (PROVEEDOR_PROVINCIA) REFERENCES [GD2C2022].[sale_worson].PROVINCIA(PROVINCIA_ID)
+	ADD CONSTRAINT FK_clienteUbicacion
+	FOREIGN KEY (CLIENTE_UBICACION) REFERENCES [GD2C2022].[sale_worson].ubicacion(UBICACION_ID)
 
 	-----/////////////////////////////////////////////////////////////////////////-----
 
@@ -358,6 +349,13 @@ BEGIN
 
 	-----/////////////////////////////////////////////////////////////////////////-----
 
+
+	ALTER TABLE [GD2C2022].[sale_worson].medio_envio
+	ADD CONSTRAINT FK_medio_envioUbicacion
+	FOREIGN KEY (MEDIO_ENVIO_UBICACION) REFERENCES [GD2C2022].[sale_worson].Ubicacion(UBICACION_ID)
+
+
+	-----/////////////////////////////////////////////////////////////////////////-----
 
 	ALTER TABLE [GD2C2022].[sale_worson].Venta
 	ADD CONSTRAINT FK_VentaMedio_pago
@@ -440,14 +438,12 @@ END
 GO
 
 
--- ================================================
--- ================================================
--- ================================================
--- ================SP MIGRACION====================
--- ================================================
--- ================================================
--- ================================================
--- ================================================
+-- ================================================================================================
+-- ================================================================================================
+-- ======================================= SP DE MIGRACIÓN ========================================
+-- ================================================================================================
+-- ================================================================================================
+
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -487,6 +483,45 @@ BEGIN
 	COMMIT
 	--ROLLBACK
 
+	-------------------------------------------------------- MARCA ------------------------
+
+	BEGIN TRANSACTION
+		INSERT INTO [sale_worson].[marca]
+
+		SELECT DISTINCT 
+			PRODUCTO_MARCA as MARCA_NOMBRE
+		
+		FROM [gd_esquema].[Maestra]
+		WHERE PRODUCTO_MARCA IS NOT NULL
+	COMMIT
+	--ROLLBACK
+
+
+	-------------------------------------------------------- CATEGORIA ------------------------
+
+	BEGIN TRANSACTION
+		INSERT INTO [sale_worson].[categoria]
+
+		SELECT DISTINCT 
+			PRODUCTO_CATEGORIA as CATEGORIA_NOMBRE
+		
+		FROM [gd_esquema].[Maestra]
+		WHERE PRODUCTO_CATEGORIA IS NOT NULL
+	COMMIT
+	--ROLLBACK
+
+	-------------------------------------------------------- MATERIAL ------------------------
+
+	BEGIN TRANSACTION
+		INSERT INTO [sale_worson].[material]
+
+			SELECT DISTINCT 
+			PRODUCTO_MATERIAL as MATERIAL_NOMBRE
+		
+		FROM [gd_esquema].[Maestra]
+		WHERE PRODUCTO_MATERIAL IS NOT NULL
+	COMMIT
+	--ROLLBACK
 
 	-------------------------------------------------------- PRODUCTO ------------------------
 
@@ -497,11 +532,16 @@ BEGIN
 			PRODUCTO_CODIGO,
 			PRODUCTO_NOMBRE,
 			PRODUCTO_DESCRIPCION,
-			PRODUCTO_MARCA,
-			PRODUCTO_CATEGORIA,
-			PRODUCTO_MATERIAL
+			mrc.MARCA_ID			as PRODUCTO_MARCA,
+			cat.CATEGORIA_ID		as PRODUCTO_CATEGORIA,
+			mat.MATERIAL_ID			as PRODUCTO_MATERIAL
 		
-		FROM [gd_esquema].[Maestra]
+		FROM [gd_esquema].[Maestra]		mas
+
+		JOIN [sale_worson].[marca]		mrc		ON	mrc.marca_nombre = mas.PRODUCTO_MARCA
+		JOIN [sale_worson].[categoria]	cat		ON	cat.categoria_nombre = mas.PRODUCTO_MARCA
+		JOIN [sale_worson].[material]	mat		ON	mat.materiaL_nombre = mas.PRODUCTO_MATERIAL
+
 		WHERE PRODUCTO_CODIGO IS NOT NULL
 	COMMIT
 	--ROLLBACK
@@ -566,23 +606,49 @@ BEGIN
 	--ROLLBACK
 
 
+	-------------------------------------------------------- UBICACION   -------------------------
+
+
+	BEGIN TRANSACTION
+		INSERT INTO [sale_worson].[ubicacion]
+  
+		SELECT DISTINCT 
+			
+			CLIENTE_PROVINCIA		as UBICACION_PROVINCIA,
+			CLIENTE_CODIGO_POSTAL	as UBICACION_CP
+
+		FROM [gd_esquema].[Maestra]
+		WHERE CLIENTE_PROVINCIA IS NOT NULL
+
+	COMMIT
+	--ROLLBACK
+
 
 	-------------------------------------------------------- MEDIO ENVIO   -------------------------
+
+
 	BEGIN TRANSACTION
 		INSERT INTO [sale_worson].[medio_envio]
   
 		SELECT DISTINCT 
-			VENTA_MEDIO_ENVIO,
-			VENTA_ENVIO_PRECIO
+			VENTA_MEDIO_ENVIO		as MEDIO_ENVIO_DESCRIPCION,
+			VENTA_ENVIO_PRECIO		as MEDIO_ENVIO_PRECIO
+			UBICACION_ID			as MEDIO_ENVIO_UBICACION
+
 		FROM [gd_esquema].[Maestra]
+		JOIN [sale_worson].[ubicacion]
+			ON CLIENTE_PROVINCIA = UBICACION_PROVINCIA
+			AND CLIENTE_CODIGO_POSTAL = UBICACION_CP
+
 		WHERE VENTA_MEDIO_ENVIO IS NOT NULL
 
 	COMMIT
 	--ROLLBACK
 
 
-
 	-------------------------------------------------------- CANAL VENTA   -------------------------
+
+
 	BEGIN TRANSACTION
 		INSERT INTO [sale_worson].[canal_venta]
   
@@ -594,7 +660,6 @@ BEGIN
 
 	COMMIT
 	--ROLLBACK
-
 
 
 	-------------------------------------------------------- MEDIO PAGO ----------------------------
@@ -620,19 +685,24 @@ BEGIN
 	   INSERT INTO [sale_worson].[cliente]
 
 		SELECT DISTINCT 
-				CLIENTE_NOMBRE 
-			   ,CLIENTE_APELLIDO
-			   ,CLIENTE_DNI
-			   ,CLIENTE_DIRECCION
-			   ,CLIENTE_TELEFONO
-			   ,CLIENTE_MAIL
-			   ,CLIENTE_FECHA_NAC
-			   ,CLIENTE_LOCALIDAD
-			   ,CLIENTE_CODIGO_POSTAL
-			   ,CLIENTE_PROVINCIA
+			CLIENTE_NOMBRE,
+			CLIENTE_APELLIDO,
+			CLIENTE_DNI,
+			CLIENTE_DIRECCION,
+			CLIENTE_TELEFONO,
+			CLIENTE_MAIL,
+			CLIENTE_FECHA_NAC,
+			CLIENTE_LOCALIDAD,
+			UBICACION_PROVINCIA,
+			UBICACION_CP
 		
 		FROM [gd_esquema].[Maestra]
-		WHERE CLIENTE_NOMBRE IS NOT NULL AND CLIENTE_APELLIDO IS NOT NULL
+		JOIN [sale_worson].[ubicacion]
+			ON CLIENTE_PROVINCIA = UBICACION_PROVINCIA
+			AND CLIENTE_CODIGO_POSTAL = UBICACION_CP
+		WHERE
+			CLIENTE_NOMBRE IS NOT NULL AND
+			CLIENTE_APELLIDO IS NOT NULL
 
 	COMMIT
 	--ROLLBACK
@@ -646,10 +716,10 @@ BEGIN
 		SELECT DISTINCT 
 			ma.VENTA_CODIGO,
 			ma.VENTA_FECHA,
-			mp.MEDIO_PAGO_ID as VENTA_MEDIO_PAGO,
-			me.MEDIO_ENVIO_ID as VENTA_MEDIO_ENVIO,
-			cv.CANAL_VENTA_ID as VENTA_CANAL,
-			c.CLIENTE_ID as VENTA_CLIENTE,
+			mp.MEDIO_PAGO_ID	as VENTA_MEDIO_PAGO,
+			me.MEDIO_ENVIO_ID	as VENTA_MEDIO_ENVIO,
+			cv.CANAL_VENTA_ID	as VENTA_CANAL,
+			c.CLIENTE_ID		as VENTA_CLIENTE,
 			ma.VENTA_TOTAL
 		FROM [gd_esquema].[Maestra] ma
 
@@ -782,13 +852,13 @@ BEGIN
 		INSERT INTO [sale_worson].[proveedor]
    
 		SELECT DISTINCT 
-				PROVEEDOR_RAZON_SOCIAL
-			   ,PROVEEDOR_CUIT
-			   ,PROVEEDOR_DOMICILIO
-			   ,PROVEEDOR_MAIL
-			   ,PROVEEDOR_LOCALIDAD
-			   ,PROVEEDOR_CODIGO_POSTAL
-			   ,PROVEEDOR_PROVINCIA
+			PROVEEDOR_RAZON_SOCIAL,
+			PROVEEDOR_CUIT,
+			PROVEEDOR_DOMICILIO,
+			PROVEEDOR_MAIL,
+			PROVEEDOR_LOCALIDAD,
+			PROVEEDOR_PROVINCIA,
+			PROVEEDOR_CODIGO_POSTAL
 		
 		FROM [gd_esquema].[Maestra]
 		WHERE PROVEEDOR_RAZON_SOCIAL IS NOT NULL
@@ -828,25 +898,32 @@ BEGIN
 
 
 	-------------------------------------------------------- COMPRA DETALLE-------------------------
-	BEGIN TRANSACTION
-		INSERT INTO [sale_worson].[compra_detalle]
 
-		SELECT DISTINCT
-			c.COMPRA_NUMERO as CD_COMPRA,
-			p.PV_CODIGO as CD_PV,
-			SUM(m.COMPRA_PRODUCTO_CANTIDAD) as CD_CANTIDAD,
-			SUM(m.COMPRA_PRODUCTO_PRECIO * m.COMPRA_PRODUCTO_CANTIDAD) as CD_PRECIO
+    BEGIN TRANSACTION
+        INSERT INTO [sale_worson].[compra_detalle]
 
-		FROM [gd_esquema].[Maestra] m
+        SELECT 
+            --ROW_NUMBER() OVER(ORDER BY c.COMPRA_NUMERO, p.PV_CODIGO),
+            c.COMPRA_NUMERO as CD_COMPRA,
+            p.PV_CODIGO as CD_PV,
+            --m.COMPRA_NUMERO,
+            --m.PRODUCTO_VARIANTE_CODIGO,
+            (SELECT SUM(ma.COMPRA_PRODUCTO_CANTIDAD) FROM [gd_esquema].[Maestra] ma) as CD_CANTIDAD,
+            (SELECT SUM(ma.COMPRA_PRODUCTO_PRECIO * ma.COMPRA_PRODUCTO_CANTIDAD) FROM [gd_esquema].[Maestra] ma) as CD_PRECIO
 
-		INNER JOIN [sale_worson].[producto_variante] p ON m.PRODUCTO_VARIANTE_CODIGO = p.PV_CODIGO
-		INNER JOIN [sale_worson].[compra] c ON m.COMPRA_NUMERO = c.COMPRA_NUMERO 
+            --SUM(m.COMPRA_PRODUCTO_CANTIDAD) as CD_CANTIDAD,
+            --SUM(m.COMPRA_PRODUCTO_PRECIO * m.COMPRA_PRODUCTO_CANTIDAD) as CD_PRECIO
 
-		GROUP BY c.COMPRA_NUMERO, p.PV_CODIGO
+        FROM [gd_esquema].[Maestra] m
 
+        INNER JOIN [sale_worson].[producto_variante] p ON m.PRODUCTO_VARIANTE_CODIGO = p.PV_CODIGO
+        INNER JOIN [sale_worson].[compra] c ON m.COMPRA_NUMERO = c.COMPRA_NUMERO 
 
-	COMMIT
-	--ROLLBACK
+        --GROUP BY c.COMPRA_NUMERO, p.PV_CODIGO
+        --ORDER BY 1,2 
+
+    COMMIT
+    --ROLLBACK
 
 
 	-------------------------------------------------------- DESCUENTO COMPRA-----------------------
@@ -885,9 +962,11 @@ END
 GO
 
 
--- ================================================
--- ================================================
--- ================================================
+-- ================================================================================================
+-- ================================================================================================
+-- ========================================= SP VISTAS ============================================
+-- ================================================================================================
+-- ================================================================================================
 
 
 
