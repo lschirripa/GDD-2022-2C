@@ -968,22 +968,78 @@ GO
 
 
 -- ================================================================================================
--- ================================================================================================
+
 -- ========================================= SP VISTAS ============================================
+
 -- ================================================================================================
+
+/*Las ganancias mensuales de cada canal de venta.
+Se entiende por ganancias al total de las ventas, menos el total de las
+compras, menos los costos de transacción totales aplicados asociados los
+medios de pagos utilizados en las mismas.*/
+
+CREATE VIEW vw_ganancias_mensuales_canal_venta (VW_1_CANAL_VENTA, VW_1_GANANCIA_MENSUAL_TOTAL)
+AS
+
+SELECT
+	CANAL_VENTA_ID,
+	SUM(VENTA_TOTAL - COMPRA_TOTAL - MEDIO_PAGO_COSTO)
+FROM canal_venta
+JOIN venta ON VENTA_CANAL = CANAL_VENTA_ID
+JOIN medio_pago ON VENTA_MEDIO_PAGO = MEDIO_PAGO_ID
+
+GROUP BY MONTH(VENTA_FECHA)
+
 -- ================================================================================================
 
+/*Los 5 productos con mayor rentabilidad anual, con sus respectivos %
+Se entiende por rentabilidad a los ingresos generados por el producto
+(ventas) durante el periodo menos la inversión realizada en el producto
+(compras) durante el periodo, todo esto sobre dichos ingresos.
+Valor expresado en porcentaje.
+Para simplificar, no es necesario tener en cuenta los descuentos aplicados.12*/
 
+-- ================================================================================================
 
--- ================================================
--- ================================================
--- ================================================
+/*Las 5 categorías de productos más vendidos por rango etario de clientes
+por mes.*/
 
+-- ================================================================================================
 
+/*Total de Ingresos por cada medio de pago por mes, descontando los costos
+por medio de pago (en caso que aplique) y descuentos por medio de pago
+(en caso que aplique)*/
 
--- ================================================
--- ===========Llamado de los SP=================
--- ================================================
+-- ================================================================================================
+
+/*Importe total en descuentos aplicados según su tipo de descuento, por
+canal de venta, por mes. Se entiende por tipo de descuento como los
+correspondientes a envío, medio de pago, cupones, etc)*/
+
+-- ================================================================================================
+
+/*Porcentaje de envíos realizados a cada Provincia por mes. El porcentaje
+debe representar la cantidad de envíos realizados a cada provincia sobre
+total de envío mensuales.*/
+
+-- ================================================================================================
+
+/*Valor promedio de envío por Provincia por Medio De Envío anual.*/
+
+-- ================================================================================================
+
+/*Aumento promedio de precios de cada proveedor anual. Para calcular este
+indicador se debe tomar como referencia el máximo precio por año menos
+el mínimo todo esto divido el mínimo precio del año. Teniendo en cuenta
+que los precios siempre van en aumento.*/
+
+-- ================================================================================================
+
+/*Los 3 productos con mayor cantidad de reposición por mes.*/
+
+-- ================================================================================================
+-- ====================================Llamado de los SP===========================================
+-- ================================================================================================
 
 
 EXEC [sale_worson].prc_creacion_de_tablas
