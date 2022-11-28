@@ -1,6 +1,6 @@
 --Las ganancias mensuales de cada canal de venta.
 --Se entiende por ganancias al total de las ventas, menos el total de las
---compras, menos los costos de transacción totales aplicados asociados los
+--compras, menos los costos de transacciÃ³n totales aplicados asociados los
 --medios de pagos utilizados en las mismas.
 
 ALTER VIEW vw_ganancias_mensuales_canal_venta (CANAL_VENTA, ANIOMES ,GANANCIA_MENSUAL_TOTAL)
@@ -22,8 +22,6 @@ JOIN [sale_worson].compra ON CD_COMPRA = COMPRA_NUMERO
 GROUP BY convert(varchar(7), VENTA_FECHA, 126), CANAL_VENTA_ID
 
 
-SELECT SUM(ISNULL(M.VENTA_TOTAL,0) - ISNULL(M.COMPRA_TOTAL,0) - ISNULL(M.VENTA_MEDIO_PAGO_COSTO,0)) AS total FROM [gd_esquema].[Maestra] M
-WHERE convert(varchar(7), M.COMPRA_FECHA, 126) = convert(varchar(7), M.VENTA_FECHA, 126)
-GROUP BY M.VENTA_CANAL, convert(varchar(7), M.VENTA_FECHA, 126)
-
-SELECT [dbo].[vw_ganancias_mensuales_canal_venta]
+-- SELECT SUM(ISNULL(M.VENTA_TOTAL,0) - ISNULL(M.COMPRA_TOTAL,0) - ISNULL(M.VENTA_MEDIO_PAGO_COSTO,0)) AS total FROM [gd_esquema].[Maestra] M
+-- WHERE convert(varchar(7), M.COMPRA_FECHA, 126) = convert(varchar(7), M.VENTA_FECHA, 126)
+-- GROUP BY M.VENTA_CANAL, convert(varchar(7), M.VENTA_FECHA, 126)
