@@ -973,61 +973,138 @@ GO
 
 -- ================================================================================================
 
+-- 1 entre todos
 /*Las ganancias mensuales de cada canal de venta.
 Se entiende por ganancias al total de las ventas, menos el total de las
 compras, menos los costos de transacción totales aplicados asociados los
 medios de pagos utilizados en las mismas.*/
 
-CREATE VIEW vw_ganancias_mensuales_canal_venta (VW_1_CANAL_VENTA, VW_1_GANANCIA_MENSUAL_TOTAL)
+CREATE VIEW vw_ganancias_mensuales_canal_venta (CANAL_VENTA, ANIO_MES ,GANANCIA_MENSUAL_TOTAL)
 AS
 
 SELECT
 	CANAL_VENTA_ID,
-	SUM(VENTA_TOTAL - COMPRA_TOTAL - MEDIO_PAGO_COSTO)
-FROM canal_venta
-JOIN venta ON VENTA_CANAL = CANAL_VENTA_ID
-JOIN medio_pago ON VENTA_MEDIO_PAGO = MEDIO_PAGO_ID
+	CONVERT(varchar(7), VENTA_FECHA, 126)				AS ANIO_MES,
+	SUM(VENTA_TOTAL - COMPRA_TOTAL - MEDIO_PAGO_COSTO)	AS GANANCIA_MENSUAL_TOTAL
 
-GROUP BY MONTH(VENTA_FECHA)
+FROM [sale_worson].canal_venta
+JOIN [sale_worson].venta				ON VENTA_CANAL = CANAL_VENTA_ID
+JOIN [sale_worson].medio_pago			ON VENTA_MEDIO_PAGO = MEDIO_PAGO_ID
+JOIN [sale_worson].venta_detalle		ON VENTA_CODIGO = VD_VENTA
+JOIN [sale_worson].producto_variante	ON VD_PV = PV_CODIGO
+JOIN [sale_worson].compra_detalle		ON PV_CODIGO = CD_PV
+JOIN [sale_worson].compra				ON CD_COMPRA = COMPRA_NUMERO
+
+GROUP BY convert(varchar(7), VENTA_FECHA, 126), CANAL_VENTA_ID
 
 -- ================================================================================================
 
+-- 2 FRAN P
 /*Los 5 productos con mayor rentabilidad anual, con sus respectivos %
 Se entiende por rentabilidad a los ingresos generados por el producto
 (ventas) durante el periodo menos la inversión realizada en el producto
 (compras) durante el periodo, todo esto sobre dichos ingresos.
 Valor expresado en porcentaje.
-Para simplificar, no es necesario tener en cuenta los descuentos aplicados.12*/
+Para simplificar, no es necesario tener en cuenta los descuentos aplicados.*/
+
+CREATE VIEW vw_productos_mas_rentables_anualmente (PRODUCTO, ANIO, RENTABILIDAD)
+AS
+
+SELECT
+	PV_CODIGO												AS PRODUCTO,
+	YEAR(VENTA_FECHA)										AS ANIO,
+	SUM(VENTA_TOTAL - COMPRA_TOTAL)/SUM(VENTA_TOTAL)*100	AS RENTABILIDAD
+
+FROM [sale_worson].producto_variante
+JOIN [sale_worson].venta_detalle		ON VD_PV = PV_CODIGO
+JOIN [sale_worson].venta				ON VENTA_CODIGO = VD_VENTA
+JOIN [sale_worson].compra_detalle		ON CD_PV = PV_CODIGO
+JOIN [sale_worson].compra				ON COMPRA_CODIGO = CD_COMPRA
+
+GROUP BY
+	PV_CODIGO,
+	YEAR(VENTA_FECHA)
 
 -- ================================================================================================
 
+-- 3 LUCHO
 /*Las 5 categorías de productos más vendidos por rango etario de clientes
 por mes.*/
 
 -- ================================================================================================
 
+-- 4 LUCHO
 /*Total de Ingresos por cada medio de pago por mes, descontando los costos
 por medio de pago (en caso que aplique) y descuentos por medio de pago
 (en caso que aplique)*/
 
 -- ================================================================================================
 
+-- 5 TEFI
 /*Importe total en descuentos aplicados según su tipo de descuento, por
 canal de venta, por mes. Se entiende por tipo de descuento como los
 correspondientes a envío, medio de pago, cupones, etc)*/
 
 -- ================================================================================================
 
+-- 6 FRAN P
 /*Porcentaje de envíos realizados a cada Provincia por mes. El porcentaje
 debe representar la cantidad de envíos realizados a cada provincia sobre
 total de envío mensuales.*/
 
+CREATE VIEW vw_porcentaje_envios_mensuales (PROVINCIA, ANIO_MES, CANTIDAD_ENVIOS, PORCENTAJE_DEL_TOTAL)
+AS
+
+SELECT
+	u.UBICACION_PROVINCIA						AS PROVINCIA,
+	CONVERT(varchar(7), v.VENTA_FECHA, 126)		AS ANIO_MES,
+	(
+		SELECT COUNT(1)
+		FROM [sale_worson].venta v2
+		JOIN [sale_worson].medio_envio me2		ON MEDIO_ENVIO_ID = VENTA_MEDIO_ENVIO
+		JOIN [sale_worson].ubicacion u2			ON UBICACION_ID = MEDIO_ENVIO_UBICACION
+		
+		WHERE
+			u2.UBICACION_PROVINCIA = u.UBICACION_PROVINCIA
+			AND CONVERT(varchar(7), v2.VENTA_FECHA, 126) = CONVERT(varchar(7), v.VENTA_FECHA, 126)
+
+	) AS CANTIDAD_ENVIOS,
+	(
+		(
+			SELECT COUNT(1)
+			FROM [sale_worson].venta v2
+			JOIN [sale_worson].medio_envio me2		ON MEDIO_ENVIO_ID = VENTA_MEDIO_ENVIO
+			JOIN [sale_worson].ubicacion u2			ON UBICACION_ID = MEDIO_ENVIO_UBICACION
+		
+			WHERE
+				u2.UBICACION_PROVINCIA = u.UBICACION_PROVINCIA
+				AND CONVERT(varchar(7), v2.VENTA_FECHA, 126) = CONVERT(varchar(7), v.VENTA_FECHA, 126)
+		)*100/
+		(
+			SELECT COUNT(1)
+			FROM [sale_worson].venta v3
+			JOIN [sale_worson].medio_envio me3		ON MEDIO_ENVIO_ID = VENTA_MEDIO_ENVIO
+			JOIN [sale_worson].ubicacion u3			ON UBICACION_ID = MEDIO_ENVIO_UBICACION
+		
+			WHERE CONVERT(varchar(7), v3.VENTA_FECHA, 126) = CONVERT(varchar(7), v.VENTA_FECHA, 126)
+		)
+	) AS PORCENTAJE_DEL_TOTAL
+
+FROM [sale_worson].venta v
+JOIN [sale_worson].medio_envio me	ON MEDIO_ENVIO_ID = VENTA_MEDIO_ENVIO
+JOIN [sale_worson].ubicacion u		ON UBICACION_ID = MEDIO_ENVIO_UBICACION
+
+--GROUP BY
+	
+
 -- ================================================================================================
 
+-- 7 TEFI
 /*Valor promedio de envío por Provincia por Medio De Envío anual.*/
 
 -- ================================================================================================
 
+--8 LUCHO
 /*Aumento promedio de precios de cada proveedor anual. Para calcular este
 indicador se debe tomar como referencia el máximo precio por año menos
 el mínimo todo esto divido el mínimo precio del año. Teniendo en cuenta
@@ -1035,7 +1112,14 @@ que los precios siempre van en aumento.*/
 
 -- ================================================================================================
 
+--9 TEFI
 /*Los 3 productos con mayor cantidad de reposición por mes.*/
+
+
+
+
+
+
 
 -- ================================================================================================
 -- ====================================Llamado de los SP===========================================
