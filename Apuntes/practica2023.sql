@@ -140,3 +140,251 @@ WHERE P.prod_codigo IN (
 )
 GROUP BY P.prod_codigo, P.prod_detalle
 
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+-- realizar una consulta sql que retorne para TODOS los productos 
+-- COD_PRODUCTO
+-- RUBRO_PRODUCTO
+-- CANT_ COMPONENTES QUE TIENE
+-- CANT FACTURAS DE SUS COMPONENTES SI TIENE
+-- QUE FUERON VENDIDOS
+
+SELECT
+    P.prod_codigo,
+    r.rubr_detalle,
+    count(C.comp_componente) AS cant_componentes,
+    (
+        SELECT 
+            COUNT(1)
+        FROM Item_Factura IFF
+        JOIN Factura F ON f.fact_numero+f.fact_sucursal+f.fact_tipo = iff.item_numero+iff.item_sucursal+iff.item_tipo
+        WHERE IFF.item_producto =  C.comp_componente
+    )
+FROM PRODUCTO P
+JOIN RUBRO R ON R.rubr_id = P.prod_rubro
+JOIN Composicion C ON C.comp_producto = P.prod_codigo
+GROUP BY p.prod_codigo, r.rubr_detalle, C.comp_componente
+
+-- select * from Composicion
+
+-- SELECT 
+--     COUNT(1)
+-- FROM Item_Factura IFF
+-- JOIN Factura F ON f.fact_numero+f.fact_sucursal+f.fact_tipo = iff.item_numero+iff.item_sucursal+iff.item_tipo
+-- WHERE IFF.item_producto = '00001420'
+
+-- realizar una consulta sql que retorne para TODOS los productos 
+-- COD_PRODUCTO
+-- RUBRO_PRODUCTO
+-- CANT_ COMPONENTES QUE TIENE
+-- CANT FACTURAS DE SUS COMPONENTES SI TIENE
+-- QUE FUERON VENDIDOS
+
+--- no esta mal approach pero diferente vista a lo que me pide
+
+SELECT
+    P.prod_codigo,
+    P.prod_rubro,
+    sum(distinct C.comp_cantidad) as 'cant_componentes',
+    C.comp_componente
+
+        , (select count(F2.fact_numero)
+    FROM Factura F2
+        JOIN Item_Factura iff2 on F2.fact_numero = iff2.item_numero and iff2.item_sucursal = f2.fact_sucursal and iff2.item_tipo = f2.fact_tipo
+    WHERE iff2.item_producto = C.comp_componente
+        ) AS 'cantidad de veces vendido'
+
+FROM Producto P
+    JOIN Item_Factura iff on iff.item_producto = P.prod_codigo
+    JOIN Factura F on iff.item_numero = F.fact_numero and iff.item_sucursal = f.fact_sucursal and iff.item_tipo = f.fact_tipo
+    LEFT JOIN Composicion C on C.comp_producto = P.prod_codigo
+GROUP BY P.prod_codigo, P.prod_rubro, C.comp_componente, c.comp_cantidad
+HAVING count(distinct C.comp_componente) > 0
+
+-- realizar una consulta sql que retorne para TODOS los productos 
+-- COD_PRODUCTO
+-- RUBRO_PRODUCTO
+-- CANT_ COMPONENTES QUE TIENE
+-- CANT FACTURAS DE SUS COMPONENTES SI TIENE
+-- QUE FUERON VENDIDOS
+
+
+SELECT
+    prod_codigo,
+    prod_rubro,
+    ISNULL(sum(comp_cantidad),0) as Cantidad_de_componentes,
+
+    ISNULL(
+        ( SELECT COUNT(*) FROM Item_factura
+        WHERE item_producto IN (SELECT comp_componente
+        FROM Composicion
+        WHERE comp_producto = prod_codigo)
+        ),0) AS cantidad_facturas_de_componentes
+
+    FROM Composicion
+    
+    RIGHT JOIN Producto ON comp_producto = prod_codigo
+    GROUP BY prod_codigo, prod_rubro
+    HAVING         ( SELECT COUNT(*) FROM Item_factura
+        WHERE item_producto IN (SELECT comp_componente
+        FROM Composicion
+        WHERE comp_producto = prod_codigo)
+        ) > 0
+
+    ORDER BY cantidad_facturas_de_componentes DESC
+
+------casi igual approach diferencias boludas-----------
+
+SELECT
+    P.prod_codigo,
+    P.prod_rubro,
+    sum(C.comp_cantidad) AS cant_componentes,
+(
+    SELECT 
+    COUNT(*)
+    FROM Item_Factura IFF
+    WHERE Iff.item_producto IN 
+        (
+        SELECT 
+            comp_componente 
+        FROM Composicion
+        WHERE comp_producto = p.prod_codigo
+        ) 
+) AS cant_veces_vendidas_de_sus_componentes
+FROM PRODUCTO P
+JOIN Composicion C ON C.comp_producto = P.prod_codigo
+GROUP BY P.prod_codigo, P.prod_rubro
+
+
+
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+-- Armar una consulta SQL que muestre aquel/aquellos clientes que en 2 años consecutivos (de existir),
+--  fueron los mejores compradores, es decir, los que en monto total facturado anual fue el máximo.De esos clientes mostrar , 
+--  razón social, domicilio, cantidad de unidades compradas.Nota: No se puede usar select en el from
+
+SELECT
+    C.clie_razon_social,
+    C.clie_domicilio,
+    SUM(F.fact_total) as total,
+    (
+        SELECT SUM(iff2.item_cantidad) FROM Item_Factura IFF2
+        JOIN Factura F2 on F2.fact_numero = iff2.item_numero and iff2.item_sucursal = f2.fact_sucursal and iff2.item_tipo = f2.fact_tipo
+        WHERE f2.fact_cliente = f.fact_cliente
+        AND
+        YEAR(f2.fact_fecha) = YEAR(f.fact_fecha) OR YEAR(f2.fact_fecha) = YEAR(f.fact_fecha)+1
+
+
+    ) AS cant_unidades_compradas
+
+FROM FACTURA F
+JOIN CLIENTE C ON C.clie_codigo = F.fact_cliente
+GROUP BY C.clie_razon_social, C.clie_domicilio, YEAR(f.fact_fecha), C.clie_codigo,f.fact_cliente
+HAVING 
+C.clie_codigo = (
+    SELECT TOP 1
+        f2.fact_cliente
+    FROM FACTURA F2
+    WHERE YEAR(F2.fact_fecha) = YEAR(F.fact_fecha)
+    GROUP BY F2.fact_cliente
+    ORDER BY SUM(F2.fact_total) DESC
+)
+AND
+C.clie_codigo = (
+    SELECT TOP 1
+        f2.fact_cliente
+    FROM FACTURA F2
+    WHERE YEAR(F2.fact_fecha) = YEAR(F.fact_fecha)+1
+    GROUP BY F2.fact_cliente
+    ORDER BY SUM(F2.fact_total) DESC
+)
+ORDER BY total DESC
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+-- Realizar una consulta SQL que devuelva los clientes que NO tuvieron la facturacion maxima y la facturacion minima en el 2012.
+-- de estos clientes mostrar:
+-- el NUM DE ORDEN: asignando 1 al cliente de mayor venta y N al de menor venta. Entiendase el N como el num correspondiente al que menos vendio en el 
+-- 2012. Entiendase venta como total facturado
+
+-- El codigo del cliente
+-- El monto total comprado en el 2012
+-- La cant de unidades de productos compradas en el 2012
+-- NOTA: no se permiten select en el from etc etc
+
+SELECT
+    ROW_NUMBER() OVER (ORDER BY SUM(F.fact_total) DESC) AS num_orden,
+    F.fact_cliente,
+    SUM(F.fact_total) as total_facturado,
+    SUM(Iff.item_cantidad) as cant_productos_comprados
+FROM FACTURA F
+JOIN Item_Factura iff ON iff.item_sucursal+iff.item_numero+iff.item_tipo = f.fact_sucursal+f.fact_numero+f.fact_tipo
+WHERE YEAR(F.fact_fecha) = 2012
+GROUP BY F.fact_cliente
+HAVING
+F.fact_cliente NOT IN
+(
+    (
+    SELECT TOP 1
+        f2.fact_cliente
+    FROM FACTURA F2
+    WHERE YEAR(F2.fact_fecha) = 2012
+    GROUP BY F2.fact_cliente
+    ORDER BY SUM(F2.fact_total) DESC
+    )
+)
+AND
+F.fact_cliente NOT IN 
+(
+    (
+    SELECT TOP 1
+        f2.fact_cliente
+    FROM FACTURA F2
+    WHERE YEAR(F2.fact_fecha) = 2012
+    GROUP BY F2.fact_cliente
+    ORDER BY SUM(F2.fact_total) ASC
+    )
+)
+order by SUM(F.fact_total) DESC
+
+
+
+
+--------hermoso uso del rownumber partition by order by--------------------------------------------------------------------------------------------------------
+SELECT
+    ROW_NUMBER() OVER (PARTITION BY F.fact_vendedor ORDER BY SUM(F.fact_total) DESC) AS num_orden,
+    F.fact_cliente,
+    SUM(F.fact_total) as total_facturado,
+    SUM(Iff.item_cantidad) as cant_productos_comprados,
+    F.fact_vendedor
+FROM FACTURA F
+JOIN Item_Factura iff ON iff.item_sucursal+iff.item_numero+iff.item_tipo = f.fact_sucursal+f.fact_numero+f.fact_tipo
+WHERE YEAR(F.fact_fecha) = 2012
+GROUP BY F.fact_cliente, F.fact_vendedor
+HAVING
+F.fact_cliente NOT IN
+(
+    (
+    SELECT TOP 1
+        f2.fact_cliente
+    FROM FACTURA F2
+    WHERE YEAR(F2.fact_fecha) = 2012
+    GROUP BY F2.fact_cliente
+    ORDER BY SUM(F2.fact_total) DESC
+    )
+)
+AND
+F.fact_cliente NOT IN 
+(
+    (
+    SELECT TOP 1
+        f2.fact_cliente
+    FROM FACTURA F2
+    WHERE YEAR(F2.fact_fecha) = 2012
+    GROUP BY F2.fact_cliente
+    ORDER BY SUM(F2.fact_total) ASC
+    )
+)
+-- order by SUM(F.fact_total) DESC
