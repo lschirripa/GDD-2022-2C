@@ -388,3 +388,255 @@ F.fact_cliente NOT IN
     )
 )
 -- order by SUM(F.fact_total) DESC
+
+
+
+--------------------------------------------------------------------------------------------------------EJ 1ER PARCIAL 2022--------------------------------------------------------------------------------------------------------
+
+/*
+1. Realizar una consulta SQL q permita saber si un cliente compro un producto en todos los meses de 2012
+
+mostrar para el 2012:
+	1- el cliente
+	2- la razon social del cliente
+	3- el producto comprado
+	4- el nombre del producto
+	5- cantidad de productos distintos comprados por el cliente
+	6- cantidad de productos con composicion comprados por el cliente
+
+El resultado debe ser ordenado poniendo primero aquellos clientes q compraron mas de 10 productos distintos en 2012.
+*/
+
+
+SELECT 
+    F.fact_cliente AS COD_Cliente,
+    C.clie_razon_social,
+    iff.item_producto,
+    P.prod_detalle,
+(
+SELECT
+    COUNT(distinct iff2.item_producto)
+FROM Item_Factura IFF2
+JOIN FACTURA F2 ON f2.fact_numero+f2.fact_sucursal+f2.fact_tipo = iff2.item_numero+iff2.item_sucursal+iff2.item_tipo
+WHERE 
+    YEAR(F2.fact_fecha) = 2012 
+    AND 
+    F2.fact_cliente = f.fact_cliente
+) as cant_distintos_productos_comprados_2012,
+
+(
+SELECT
+    count(distinct iff2.item_producto)
+FROM Item_Factura IFF2
+JOIN FACTURA F2 ON f2.fact_numero+f2.fact_sucursal+f2.fact_tipo = iff2.item_numero+iff2.item_sucursal+iff2.item_tipo
+JOIN Composicion c on c.comp_producto = iff2.item_producto
+WHERE 
+    YEAR(F2.fact_fecha) = 2012 
+    AND 
+    F2.fact_cliente = f.fact_cliente 
+) AS cant_productos_con_composicion_comprados 
+FROM Factura F
+
+JOIN Item_Factura IFF ON f.fact_numero+f.fact_sucursal+f.fact_tipo = iff.item_numero+iff.item_sucursal+iff.item_tipo
+JOIN Producto P ON P.prod_codigo = IFF.item_producto
+JOIN Cliente C ON C.clie_codigo = F.fact_cliente
+
+WHERE YEAR(F.fact_fecha) = 2012
+GROUP BY F.fact_cliente,C.clie_razon_social,iff.item_producto, P.prod_detalle
+HAVING COUNT(DISTINCT MONTH(F.fact_fecha)) > 6
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+-- REALIZAR una consulta SQL que retorne para todas las zonas que tengan 3 (tres) o mas depositos 
+
+-- - detalle zona
+-- - cantidad de depositos x zona
+-- - cant de productos distintos compuestos en sus depositos
+-- - producto mas vendido en el anio 2012 q tenga stock en al menos uno de sus depositos
+-- - mejor encargado perteneciente a esa zona ( el q mas vendio en la historia )
+
+-- el resultado deberea ser ordenado x monto total vendido del encargado descendiente 
+
+-- NOTA: NO Subselects en el from ni funciones definidas para el usuario
+
+SELECT
+    z.zona_detalle,
+        ISNULL((
+        SELECT
+            COUNT(D2.depo_codigo)
+        FROM DEPOSITO D2
+        WHERE D2.depo_zona = Z.zona_codigo 
+        HAVING count(d2.depo_codigo) >= 3
+
+        ),0) cant_depos_por_zona,
+    
+    (
+        SELECT 
+            COUNT(DISTINCT C2.comp_producto)
+        FROM STOCK S2
+        JOIN DEPOSITO D2 ON D2.depo_codigo = S2.stoc_deposito
+        JOIN Composicion C2 ON C2.comp_producto = S2.stoc_producto
+        WHERE D2.depo_zona = Z.zona_codigo
+    ) AS 'cant de productos distintos compuestos en sus depositos'
+
+    ,(
+    SELECT 
+        TOP 1
+        iff2.item_producto
+    FROM Item_Factura IFF2
+    JOIN Factura F2 ON f2.fact_numero+f2.fact_sucursal+f2.fact_tipo = iff2.item_numero+iff2.item_sucursal+iff2.item_tipo
+    JOIN STOCK S2 ON S2.stoc_producto = IFF2.item_producto
+    JOIN DEPOSITO D2 ON D2.depo_codigo = s2.stoc_deposito
+    WHERE YEAR(F2.fact_fecha) = 2012 AND D2.depo_zona = Z.zona_codigo
+    group by (iff2.item_producto)
+    ORDER BY SUM(iff2.item_cantidad)DESC
+
+    ) AS 'producto mas vendido en el anio 2012 q tenga stock en al menos uno de sus depositos'
+
+-- ,(
+--     SELECT TOP 1
+--         F2.fact_vendedor
+--     FROM FACTURA F2
+--     JOIN EMPLEADO E2 ON F2.fact_vendedor = E2.empl_codigo
+--     JOIN DEPARTAMENTO D2 ON E2.empl_departamento = D2.depa_codigo
+--     WHERE D2.depa_zona = Z.zona_codigo
+--     GROUP BY F2.fact_vendedor
+--     ORDER BY SUM(F2.fact_total) DESC
+-- ) AS 'mejor encargado perteneciente a esa zona',
+
+,(
+    SELECT TOP 1 fact_vendedor
+    FROM Factura 
+    WHERE fact_vendedor IN (SELECT depo_encargado FROM DEPOSITO WHERE depo_zona = zona_codigo)
+    GROUP BY fact_vendedor
+    ORDER BY SUM(fact_total) DESC
+) AS MejorEncargadoZona
+            
+
+FROM ZONA Z
+JOIN DEPOSITO D ON D.depo_zona = Z.zona_codigo
+GROUP BY z.zona_detalle, z.zona_codigo
+ORDER BY 
+
+
+-- el resultado deberea ser ordenado x monto total vendido del encargado descendiente 
+
+
+-- MINI CALCS
+                -- - producto mas vendido en el anio 2012 q tenga stock en al menos uno de sus depositos
+                    SELECT 
+                        TOP 1
+                        iff.item_producto
+                    FROM Item_Factura IFF
+                    JOIN Factura F ON f.fact_numero+f.fact_sucursal+f.fact_tipo = iff.item_numero+iff.item_sucursal+iff.item_tipo
+                    JOIN STOCK S ON S.stoc_producto = IFF.item_producto
+                    WHERE YEAR(F.fact_fecha) = 2012 AND S.stoc_deposito = '00'
+                    group by (iff.item_producto)
+                    ORDER BY SUM(iff.item_cantidad)DESC
+
+                    -- mejor encargado perteneciente a esa zona ( el q mas vendio en la historia )
+                    SELECT TOP 10
+                        F2.fact_vendedor
+                    FROM FACTURA F2
+                    JOIN EMPLEADO E2 ON F2.fact_vendedor = E2.empl_codigo
+                    JOIN DEPARTAMENTO D2 ON E2.empl_departamento = D2.depa_codigo
+                    WHERE D2.depa_zona = '004'
+                    GROUP BY F2.fact_vendedor
+                    ORDER BY SUM(F2.fact_total) DESC
+
+
+------------------------ OTRO APPROACH Q QUEDO EN LA NADA, pero se podria seguir craneando creo
+SELECT
+    z.zona_detalle,
+    count(d.depo_codigo) AS cant_depos_por_zona
+-- ,(
+-- SELECT
+--     COUNT(DISTINCT S2.stoc_producto)
+-- FROM STOCK S2
+-- JOIN DEPOSITO D2 ON D2.depo_codigo  = S2.stoc_deposito
+-- JOIN Composicion C2 ON C2.comp_producto = S2.stoc_producto
+-- WHERE D2.depo_codigo = D.depo_codigo
+-- ) AS cant_productos_distintos_compuestos_en_depo
+FROM ZONA Z
+JOIN DEPOSITO D ON D.depo_zona = Z.zona_codigo
+GROUP BY z.zona_detalle, z.zona_codigo
+HAVING count(d.depo_codigo) >= 3
+
+
+-- PARCIAL GDD 1/7/2023
+
+-- 1. realizar una consulta SQL que muestre aquellos clientes que en 2 anios consecutivos compraron.
+-- De estos clientes mostrar:
+-- 1. el cod cliente
+-- 2. el nombre del cliente
+-- 3. El num de rubros que compro el cliente
+-- 4. la cant de productos con composicion que compro el cliente en 2012
+
+-- el resultado debera ser ordenado por cantidad de facturas del cliente en toda la historia de manera ascendente
+
+SELECT
+    F.fact_cliente, C.clie_razon_social, count(distinct r.rubr_detalle) AS num_rubros_cliente_compro
+    ,(
+        SELECT COUNT(1)
+        FROM Composicion CO2
+        JOIN Producto P2 ON P2.prod_codigo = CO2.comp_producto
+        JOIN ITEM_FACTURA IFF2 ON P2.prod_codigo = IFF2.item_producto
+        JOIN FACTURA F2 ON f2.fact_numero+f2.fact_sucursal+f2.fact_tipo = iff2.item_numero+iff2.item_sucursal+iff2.item_tipo
+        WHERE YEAR(F2.fact_fecha) = 2012 AND F2.fact_cliente = F.fact_cliente
+
+    ) AS 'cant de productos con composicion que compro el cliente en 2012'
+FROM FACTURA F
+JOIN ITEM_FACTURA IFF ON f.fact_numero+f.fact_sucursal+f.fact_tipo = iff.item_numero+iff.item_sucursal+iff.item_tipo
+JOIN Producto P ON P.prod_codigo = IFF.item_producto
+JOIN Rubro R ON R.rubr_id = P.prod_rubro
+JOIN CLIENTE C ON C.clie_codigo = F.fact_cliente
+WHERE F.fact_cliente IN
+(
+    SELECT
+    F2.fact_cliente
+    FROM Factura F2
+    WHERE YEAR(F2.fact_fecha) = YEAR(f.fact_fecha)-1 OR YEAR(F2.fact_fecha) = YEAR(F2.fact_fecha)+1
+)
+GROUP by F.fact_cliente, C.clie_razon_social
+ORDER BY (
+    SELECT
+        COUNT(F2.fact_cliente)
+    FROM Factura F2
+    WHERE F2.fact_cliente = F.fact_cliente
+    GROUP BY F2.fact_cliente
+) ASC
+
+
+SELECT clie_codigo, clie_razon_social,
+ (SELECT COUNT(p1.prod_rubro) from Producto p1
+join Item_Factura if2 on if2.item_producto = p1.prod_rubro
+join Factura f2 on f2.fact_tipo+f2.fact_sucursal+f2.fact_numero = if2.item_tipo + if2.item_sucursal + if2.item_numero
+where f2.fact_cliente = clie_codigo)
+, (SELECT COUNT(item_producto) from item_factura if3
+
+join Factura f3 on f3.fact_tipo+f3.fact_sucursal+f3.fact_numero = if3.item_tipo + if3.item_sucursal + if3.item_numero
+join composicion c1 on c1.comp_producto = if3.item_producto
+where f3.fact_cliente = clie_codigo and year(f3.fact_fecha) = 2012)
+
+from factura f0
+join cliente on f0.fact_cliente = clie_codigo
+
+where 
+clie_codigo IN (
+SELECT c3.clie_codigo FROM Cliente c3 
+JOIN Factura f3 ON c3.clie_codigo = f3.fact_cliente
+WHERE YEAR(f0.fact_fecha) = YEAR(f3.fact_fecha)
+GROUP BY c3.clie_codigo, YEAR(f3.fact_fecha))
+
+AND 
+
+clie_codigo IN (
+SELECT c4.clie_codigo FROM Cliente c4
+JOIN Factura f4 ON c4.clie_codigo = f4.fact_cliente
+WHERE YEAR(f0.fact_fecha) + 1 = YEAR(f4.fact_fecha)
+GROUP BY c4.clie_codigo, YEAR(f4.fact_fecha))
+
+group by clie_codigo, clie_razon_social
+order by sum(fact_total) asc
+
+SELECT * FROM FACTURA WHERE FACT_CLIENTE = 02740 
