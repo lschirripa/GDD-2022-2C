@@ -1,124 +1,56 @@
--- realizar una consulta sql que retorne para TODOS los productos 
--- COD_PRODUCTO
--- RUBRO_PRODUCTO
--- CANT_ COMPONENTES QUE TIENE
--- CANT FACTURAS DE SUS COMPONENTES SI TIENE
--- QUE FUERON VENDIDOS
+-- REALIZAR UNA CONSULTA SQL QUE PERMITA SABER LOS CLIENTES QUE COMPRARON TODOS LOS RUBROS DISPONIBLES DEL SISTEMA EN EL 2012
+-- de estos clientes mostrar siempre para el 2012:
 
--- mi planteo (queda medio choto)
--- SELECT
---     P.prod_codigo,
---     P.prod_rubro,
---     sum(distinct C.comp_cantidad) as 'cant_componentes',
---     C.comp_componente
+--cod cliente
+--cod de producto que en cantidades mas compro
+-- nombre del producto del punto 2
+--cant de productos distintos comprados por el cliente
+--cant de productos con composicion comprados por el cliente
 
---         , (select count(F2.fact_numero)
---     FROM Factura F2
---         JOIN Item_Factura iff2 on F2.fact_numero = iff2.item_numero and iff2.item_sucursal = f2.fact_sucursal and iff2.item_tipo = f2.fact_tipo
---     WHERE iff2.item_producto = C.comp_componente
---         ) AS 'cantidad de veces vendido'
+-- el resultado debera ser ordenado por razon social del cliente alfabeticamente primero y luego, los clientes que compraron entre un 20 y 30%
+-- del total facturado en el 2012 primero, luego los restantes
 
--- FROM Producto P
---     JOIN Item_Factura iff on iff.item_producto = P.prod_codigo
---     JOIN Factura F on iff.item_numero = F.fact_numero and iff.item_sucursal = f.fact_sucursal and iff.item_tipo = f.fact_tipo
---     LEFT JOIN Composicion C on C.comp_producto = P.prod_codigo
--- GROUP BY P.prod_codigo, P.prod_rubro, C.comp_componente, c.comp_cantidad
--- HAVING count(distinct C.comp_componente) > 0
+SELECT DISTINCT F.fact_cliente,
 
---buen approach pero con 2 subselect
+(SELECT TOP 1 iff2.item_numero FROM Item_Factura iff2
+JOIN FACTURA F2 ON Iff2.item_numero+iff2.item_sucursal+iff2.item_tipo = f2.fact_numero+f2.fact_sucursal+f2.fact_tipo
+WHERE
+	YEAR(fact_fecha) = '2012'
+	AND f2.fact_cliente = F.fact_cliente
+		GROUP BY iff2.item_numero
+		ORDER BY SUM(iff2.item_cantidad) DESC
+	) AS 'codigo del mas comprado'
 
-SELECT
-    prod_codigo,
-    prod_rubro,
-    ISNULL(sum(comp_cantidad),0) as Cantidad_de_componentes,
-
-    ISNULL(
-        ( SELECT COUNT(*) FROM Item_factura
-        WHERE item_producto IN (SELECT comp_componente
-        FROM Composicion
-        WHERE comp_producto = prod_codigo)
-        ),0) AS cantidad_facturas_de_componentes
-
-    FROM Composicion
+,(SELECT TOP 1 P.prod_detalle FROM Item_Factura iff3
+    JOIN Producto P ON prod_codigo = item_producto
+    JOIN Factura f3 ON f3.fact_cliente = F.fact_cliente
+		WHERE
+		YEAR(fact_fecha) = '2012'
+		GROUP BY P.prod_detalle
+		ORDER BY SUM(item_cantidad) DESC
+	) AS 'Nombre del mas comprado'
     
-    RIGHT JOIN Producto ON comp_producto = prod_codigo
-    GROUP BY prod_codigo, prod_rubro
-    HAVING         ( SELECT COUNT(*) FROM Item_factura
-        WHERE item_producto IN (SELECT comp_componente
-        FROM Composicion
-        WHERE comp_producto = prod_codigo)
-        ) > 0
+,(SELECT COUNT (distinct prod_codigo)
+    FROM Producto P2
+    JOIN Item_Factura iff4 on item_producto = prod_codigo
+    JOIN Factura f4 on Iff4.item_numero+iff4.item_sucursal+iff4.item_tipo = f4.fact_numero+f4.fact_sucursal+f4.fact_tipo
+    WHERE YEAR(fact_fecha) = '2012' AND f4.fact_cliente = F.fact_cliente
+    GROUP BY f4.fact_cliente
+) AS 'cantidad de productos distintos comprados por el cliente'
 
-    ORDER BY cantidad_facturas_de_componentes DESC
-
-
-    -- Armar una consulta SQL que muestre aquel/aquellos clientes que en 2 años consecutivos (de existir),
-    --  fueron los mejores compradores, es decir, los que en monto total facturado anual fue el máximo.De esos clientes mostrar , 
-    --  razón social, domicilio, cantidad de unidades compradas.Nota: No se puede usar select en el from
-
-SELECT  C.clie_codigo, C.clie_razon_social , clie_domicilio, SUM(iff.item_cantidad) as cant_unidades_compradas, YEAR(F.fact_fecha)FROM Cliente c
-    JOIN Factura F on F.fact_cliente = C.clie_codigo
-    JOIN Item_Factura Iff ON iff.item_tipo = f.fact_tipo AND iff.item_sucursal = f.fact_sucursal AND iff.item_numero = f.fact_numero
-    GROUP BY C.clie_codigo, F.fact_fecha, C.clie_razon_social, C.clie_domicilio
-
-    HAVING C.clie_codigo = (
-
-        SELECT TOP 1 F2.fact_cliente FROM Factura F2 
-        WHERE YEAR(F2.fact_fecha) = YEAR(F.fact_fecha) 
-        GROUP BY F2.fact_cliente
-        ORDER BY SUM(F2.fact_total) DESC
-
-    )
-    AND
-    C.clie_codigo = (
-        SELECT TOP 1 F3.fact_cliente FROM Factura F3
-        WHERE YEAR(F3.fact_fecha) = YEAR(F.fact_fecha)+1 
-        GROUP BY F3.fact_cliente
-        ORDER BY SUM(F3.fact_total) DESC
-    )
-
--- si lo hago con el where en vez de having, es menos performante. Having ya me filtra bastantes resultados
+,(SELECT COUNT(DISTINCT P3.prod_codigo)
+		FROM Producto P3
+		JOIN Composicion C ON C.comp_producto = P3.prod_codigo
+		JOIN Item_Factura iff5 on iff5.item_producto = P3.prod_codigo
+		JOIN Factura F5 on f5.fact_sucursal = iff5.item_sucursal and f5.fact_tipo = iff5.item_tipo and f5.fact_numero = iff5.item_numero
+		WHERE f5.fact_cliente = F.fact_cliente) AS 'Cantidad de productos compuestos'
 
 
--- Realizar una consulta SQL que devuelva los clientes que NO tuvieron la facturacion maxima y la facturacion minima en el 2012.
--- de estos clientes mostrar:
--- el NUM DE ORDEN: asignando 1 al cliente de mayor venta y N al de menor venta. Entiendase el N como el num correspondiente al que menos vendio en el 
--- 2012. Entiendase venta como total facturado
-
--- El codigo del cliente
--- El monto total comprado en el 2012
--- La cant de unidades de productos compradas en el 2012
--- NOTA:    no se permiten select en el from etc etc
-
-SELECT 
-    ROW_NUMBER() OVER (ORDER BY SUM(f.fact_total)) as NUM_ORDEN,
-    clie_codigo,
-    SUM(f.fact_total) AS MONTO_TOTAL_COMPRADO_2012,
-    SUM(iff.item_cantidad) AS UNIDADES_COMPRADAS_2012
-
-    
-    FROM Cliente C
-
-JOIN Factura F ON f.fact_cliente = C.clie_codigo
-JOIN Item_Factura iff ON iff.item_sucursal+iff.item_numero+iff.item_tipo = f.fact_sucursal+f.fact_numero+f.fact_tipo
-WHERE YEAR(F.fact_fecha) = 2012 
-
-AND
-
-clie_codigo != (
-    SELECT TOP 1 F.fact_cliente FROM Factura F
-    WHERE YEAR(F.fact_fecha) = 2012
-    GROUP BY F.fact_cliente
-    ORDER BY SUM(f.fact_total) DESC
-)
-
-AND
-
-clie_codigo != (
-SELECT TOP 1 F.fact_cliente FROM Factura F
+FROM FACTURA F
+JOIN Item_Factura iff on Iff.item_numero+iff.item_sucursal+iff.item_tipo = f.fact_numero+f.fact_sucursal+f.fact_tipo
+JOIN Producto P ON P.prod_codigo = iff.item_producto
+JOIN Rubro R ON P.prod_rubro = R.rubr_id
+JOIN CLIENTE C ON F.fact_cliente = C.clie_codigo
 WHERE YEAR(F.fact_fecha) = 2012
 GROUP BY F.fact_cliente
-ORDER BY SUM(f.fact_total) ASC
-)
-
-GROUP BY clie_codigo
+HAVING COUNT(DISTINCT p.prod_rubro) = (SELECT COUNT(1) FROM Rubro R)
