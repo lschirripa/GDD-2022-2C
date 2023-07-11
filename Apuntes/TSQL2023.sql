@@ -172,70 +172,67 @@ Alter table Fact_table
 Add constraint primary key(anio,mes,familia,rubro,zona,cliente,producto)*/
 
 
--- IF OBJECT_ID('Fact_table','U') IS NOT NULL 
--- DROP TABLE Fact_table
--- GO
--- Create table Fact_table
--- (
--- anio char(4) NOT NULL, --YEAR(fact_fecha)
--- mes char(2) NOT NULL, --RIGHT('0' + convert(varchar(2),MONTH(fact_fecha)),2)
--- familia char(3) NOT NULL,--prod_familia
--- rubro char(4) NOT NULL,--prod_rubro
--- zona char(3) NOT NULL,--depa_zona
--- cliente char(6) NOT NULL,--fact_cliente
--- producto char(8) NOT NULL,--item_producto
--- cantidad decimal(12,2) NOT NULL,--item_cantidad
--- monto decimal(12,2)--asumo que es item_precio debido a que es por cada producto, 
--- 				   --asumo tambien que el precio ya esta determinado por total y no por unidad (no debe multiplicarse por cantidad)
--- )
--- Alter table Fact_table
--- Add constraint pk_Fact_table_ID primary key(anio,mes,familia,rubro,zona,cliente,producto)
--- GO
+IF OBJECT_ID('Fact_table','U') IS NOT NULL 
+DROP TABLE Fact_table
+GO
+Create table Fact_table
+(
+anio char(4) NOT NULL, --YEAR(fact_fecha)
+mes char(2) NOT NULL, --RIGHT('0' + convert(varchar(2),MONTH(fact_fecha)),2)
+familia char(3) NOT NULL,--prod_familia
+rubro char(4) NOT NULL,--prod_rubro
+zona char(3) NOT NULL,--depa_zona
+cliente char(6) NOT NULL,--fact_cliente
+producto char(8) NOT NULL,--item_producto
+cantidad decimal(12,2) NOT NULL,--item_cantidad
+monto decimal(12,2)--asumo que es item_precio debido a que es por cada producto, 
+				   --asumo tambien que el precio ya esta determinado por total y no por unidad (no debe multiplicarse por cantidad)
+)
+Alter table Fact_table
+Add constraint pk_Fact_table_ID primary key(anio,mes,familia,rubro,zona,cliente,producto)
+GO
 
--- IF OBJECT_ID('Ejercicio5','P') IS NOT NULL
--- DROP PROCEDURE Ejercicio5
--- GO
+IF OBJECT_ID('Ejercicio5','P') IS NOT NULL
+DROP PROCEDURE Ejercicio5
+GO
 
--- CREATE PROCEDURE Ejercicio5
--- AS
--- BEGIN
--- 	INSERT INTO Fact_table
--- 	SELECT YEAR(fact_fecha)
--- 		,RIGHT('0' + convert(varchar(2),MONTH(fact_fecha)),2)
--- 		,prod_familia
--- 		,prod_rubro
--- 		,depa_zona
--- 		,fact_cliente
--- 		,prod_codigo
--- 		,SUM(item_cantidad)
--- 		,sum(item_precio)
--- 	FROM Factura F
--- 		INNER JOIN Item_Factura IFACT
--- 			ON IFACT.item_tipo =f.fact_tipo AND IFACT.item_sucursal = F.fact_sucursal AND IFACT.item_numero = F.fact_numero
--- 		INNER JOIN Producto P
--- 			ON P.prod_codigo = IFACT.item_producto
--- 		INNER JOIN Empleado E
--- 			ON E.empl_codigo = F.fact_vendedor
--- 		INNER JOIN Departamento D
--- 			ON D.depa_codigo = E.empl_departamento
--- 	GROUP BY YEAR(fact_fecha)
--- 		,RIGHT('0' + convert(varchar(2),MONTH(fact_fecha)),2)
--- 		,prod_familia
--- 		,prod_rubro
--- 		,depa_zona
--- 		,fact_cliente
--- 		,prod_codigo
--- END
--- GO
+CREATE PROCEDURE Ejercicio5
+AS
+BEGIN
+	INSERT INTO Fact_table
+	SELECT YEAR(fact_fecha)
+		,RIGHT('0' + convert(varchar(2),MONTH(fact_fecha)),2)
+		,prod_familia
+		,prod_rubro
+		,depa_zona
+		,fact_cliente
+		,prod_codigo
+		,SUM(item_cantidad)
+		,sum(item_precio)
+	FROM Factura F
+		INNER JOIN Item_Factura IFACT
+			ON IFACT.item_tipo =f.fact_tipo AND IFACT.item_sucursal = F.fact_sucursal AND IFACT.item_numero = F.fact_numero
+		INNER JOIN Producto P
+			ON P.prod_codigo = IFACT.item_producto
+		INNER JOIN Empleado E
+			ON E.empl_codigo = F.fact_vendedor
+		INNER JOIN Departamento D
+			ON D.depa_codigo = E.empl_departamento
+	GROUP BY YEAR(fact_fecha)
+		,RIGHT('0' + convert(varchar(2),MONTH(fact_fecha)),2)
+		,prod_familia
+		,prod_rubro
+		,depa_zona
+		,fact_cliente
+		,prod_codigo
+END
+GO
 
--- /*
--- EXEC Ejercicio5
+/*
+EXEC Ejercicio5
 
--- SELECt * 
--- FROM Fact_table*/
-
-
-
+SELECt * 
+FROM Fact_table*/
 
 
 /*7. Hacer un procedimiento que dadas dos fechas complete la tabla Ventas. Debe
@@ -268,8 +265,7 @@ AS
 BEGIN
 	DECLARE @Codigo char(8), @Detalle char(50), @Cant_Mov int, @Precio_de_venta decimal(12,2), @Renglon int, @Ganancia decimal(12,2)
 	DECLARE cursor_articulos CURSOR
-		FOR SELECT 
-            prod_codigo
+		FOR SELECT prod_codigo
 			,prod_detalle
 			,SUM(item_cantidad)
 			,AVG(item_precio)
@@ -279,7 +275,7 @@ BEGIN
 					ON item_producto = prod_codigo
 				INNER JOIN Factura
 					ON fact_tipo = item_tipo AND fact_sucursal = fact_sucursal AND fact_numero = item_numero
-			-- WHERE fact_fecha BETWEEN @StartingDate AND @FinishingDate
+			WHERE fact_fecha BETWEEN @StartingDate AND @FinishingDate
 			GROUP BY prod_codigo,prod_detalle
 
 		OPEN cursor_articulos
@@ -304,13 +300,7 @@ GO
 
 /*
 EXEC Ejercicio7 '2012-01-01','2012-07-01'
-
-select * from Factura
-order by fact_fecha desc
-
-select * from ventas*/
-
-
+*/
 --------cursor test--------
 
 
@@ -357,3 +347,302 @@ END
 
 -- convert 126 -> 2010-01-23
 -- convert 103 -> 23/01/2010
+
+
+-- 9. Crear el/los objetos de base de datos que ante alguna modificación de un ítem de
+-- factura de un artículo con com`posición realice el movimiento de sus
+-- correspondientes componentes.
+
+DROP TRIGGER Ejercicio9
+
+ALTER TRIGGER Ejercicio9 ON item_factura FOR INSERT
+AS
+IF (SELECT COUNT(*)
+	FROM inserted I
+	WHERE I.item_producto IN (
+								SELECT comp_producto
+								FROM Composicion
+							)
+	) > 0
+	BEGIN
+		DECLARE @Codigo char(8), @Cantidad INT, @Deposito char(2)
+		DECLARE cursor_insert CURSOR
+			FOR SELECT S.stoc_producto
+					,S.stoc_cantidad
+					,S.stoc_deposito
+				FROM STOCK S
+					INNER JOIN Composicion C
+						ON C.comp_componente = S.stoc_producto
+				WHERE S.stoc_producto IN (SELECT Comp_componente
+										FROM Composicion
+										INNER JOIN inserted
+											ON item_producto = comp_producto
+											)
+					AND S.stoc_deposito = (
+											SELECT RIGHT(item_sucursal,2)
+											FROM inserted
+											WHERE C.comp_producto = item_producto
+											)
+
+				GROUP BY S.stoc_producto,S.stoc_cantidad,S.stoc_deposito
+
+		OPEN cursor_insert
+		FETCH NEXT FROM cursor_insert
+		INTO @Codigo,@cantidad,@Deposito
+		WHILE @@FETCH_STATUS = 0
+		BEGIN
+			UPDATE STOCK 
+				SET stoc_cantidad = stoc_cantidad - @cantidad
+				WHERE stoc_producto = @Codigo AND stoc_deposito = @Deposito
+				FETCH NEXT FROM cursor_insert
+				INTO @Codigo,@cantidad,@Deposito
+		END
+		CLOSE cursor_insert
+		DEALLOCATE cursor_insert
+
+	END
+GO
+
+
+/*
+select * from Item_Factura
+where item_producto IN (SELECT comp_producto
+						FROM Composicion)
+
+SELECT * from stock
+where stoc_producto IN (SELECT comp_producto
+						FROM Composicion)
+						*/
+
+                        /*
+EXEC Ejercicio7 '2012-01-01','2012-07-01'
+*/
+
+
+-- 9. Crear el/los objetos de base de datos que ante alguna modificación de un ítem de
+-- factura de un artículo con composición realice el movimiento de sus
+-- correspondientes componentes.
+
+-- DROP TRIGGER Ejercicio9
+
+CREATE TRIGGER Ejercicio9 ON item_factura FOR INSERT
+AS
+IF (SELECT COUNT(*)
+	FROM inserted I
+	WHERE I.item_producto IN (
+								SELECT comp_producto
+								FROM Composicion
+							)
+	) > 0                                                           -- si hay algun producto que tenga composicion
+	BEGIN
+		DECLARE @Codigo char(8), @Cantidad INT, @Deposito char(2) 
+		DECLARE cursor_insert CURSOR
+			FOR SELECT S.stoc_producto
+					,S.stoc_cantidad
+					,S.stoc_deposito
+				FROM STOCK S
+					INNER JOIN Composicion C
+						ON C.comp_componente = S.stoc_producto
+				WHERE S.stoc_producto IN (SELECT Comp_componente
+										FROM Composicion
+										INNER JOIN inserted
+											ON item_producto = comp_producto
+											) -- todos los productos que son componentes de los productos que se insertaron
+					AND S.stoc_deposito = (
+											SELECT RIGHT(item_sucursal,2)
+											FROM inserted
+											WHERE C.comp_producto = item_producto
+											)
+
+				GROUP BY S.stoc_producto,S.stoc_cantidad,S.stoc_deposito
+
+		OPEN cursor_insert
+		FETCH NEXT FROM cursor_insert
+		INTO @Codigo,@cantidad,@Deposito
+		WHILE @@FETCH_STATUS = 0
+		BEGIN
+			UPDATE STOCK 
+				SET stoc_cantidad = stoc_cantidad - @cantidad
+				WHERE stoc_producto = @Codigo AND stoc_deposito = @Deposito
+				FETCH NEXT FROM cursor_insert
+				INTO @Codigo,@cantidad,@Deposito
+		END
+		CLOSE cursor_insert
+		DEALLOCATE cursor_insert
+
+	END
+GO
+
+
+/*
+select * from Item_Factura
+where item_producto IN (SELECT comp_producto
+						FROM Composicion)
+
+SELECT * from stock
+where stoc_producto IN (SELECT comp_producto
+						FROM Composicion)
+						*/
+
+
+
+-- 10. Crear el/los objetos de base de datos que ante el intento de borrar un artículo
+-- verifique que no exista stock y si es así lo borre en caso contrario que emita un
+-- mensaje de error.
+
+ALTER TRIGGER TR_10 ON PRODUCTO INSTEAD OF DELETE
+AS
+BEGIN
+
+IF EXISTS(
+    SELECT 1
+    FROM deleted d
+    WHERE d.prod_codigo IN 
+        (
+        SELECT prod_codigo FROM PRODUCTO JOIN STOCK S ON S.stoc_producto = d.prod_codigo
+        WHERE s.stoc_cantidad > 0
+        )
+    ) 
+    BEGIN
+        RAISERROR('No se puede borrar un producto con stock', 16, 1);
+    END
+
+
+ELSE
+    BEGIN
+        DELETE FROM STOCK
+            WHERE stoc_producto IN (
+                                    SELECT prod_codigo
+                                    FROM deleted)
+        DELETE FROM Producto
+            WHERE prod_codigo IN (
+                                    SELECT prod_codigo
+                                    FROM deleted)
+    END
+
+END
+
+SELECT prod_codigo, stoc_cantidad FROM Producto JOIN STOCK ON stoc_producto = prod_codigo where stoc_cantidad = 0
+
+DELETE FROM PRODUCTO WHERE prod_codigo = '00000030'	--10.00
+SELECT * FROM PRODUCTO join stock on stoc_producto = prod_codigo WHERE prod_codigo = '00000030'	--10.00
+
+DELETE FROM PRODUCTO WHERE prod_codigo = '00000173'	--00.00
+SELECT * FROM PRODUCTO JOIN STOCK ON stoc_producto = prod_codigo WHERE prod_codigo = '00000173' 	--00.00
+
+-------------------------
+
+/*10. Crear el/los objetos de base de datos que ante el intento de borrar un artículo
+verifique que no exista stock y si es así lo borre en caso contrario que emita un
+mensaje de error.*/
+
+ALTER TRIGGER TR_10 ON Producto INSTEAD OF DELETE
+AS
+BEGIN
+
+IF(
+	SELECT SUM(S.stoc_cantidad)
+	FROM STOCK S
+		INNER JOIN deleted D
+			ON D.prod_codigo = S.stoc_producto
+	GROUP BY S.stoc_producto
+	) > 0
+	BEGIN
+		PRINT 'No se puede borrar porque el articulo tiene stock'
+		ROLLBACK TRANSACTION
+	END
+ELSE 
+	BEGIN
+	DELETE FROM STOCK
+		WHERE stoc_producto IN (
+								SELECT prod_codigo
+								FROM deleted)
+	DELETE FROM Producto
+		WHERE prod_codigo IN (
+								SELECT prod_codigo
+								FROM deleted)
+	END
+END
+
+/*
+DELETE FROM Producto WHERE prod_codigo = '00003821'
+
+SELECT * FROM Producto join stock on stoc_producto = prod_codigo where prod_codigo = '00003821'
+
+DELETE FROM Producto WHERE prod_codigo = '00006247'
+
+SELECT * FROM Producto join stock on stoc_producto = prod_codigo where stoc_producto = '00006247'
+
+select stoc_producto,SUM(stoc_cantidad)
+from STOCK
+	INNER JOIN Producto
+		ON prod_codigo = stoc_producto
+GROUP BY stoc_producto
+ORDER BY 2
+
+*/
+
+
+-- considerando que una factura puede representar una venta (importe mayor a cero) o una nota de credito (importe menor a cero). Cree el/los objetos de base de datos
+-- necesarios para automatiza el procedimiento de facturacion, de tal manera que se desencadenen las siguientes operaciones sin intervencion del usuario:
+-- 1. si es una venta, verificar si hay stock disponible y descontar el deposito que mas tiene. En el caso que al descontar, el deposito quede por debajo
+-- del limite de reposicion, imprimir por pantalla una alerta que diga "codigo producto - codigo deposito - REQUIERE REPOSICION" solo se interrumpira el proceso
+-- de facturacion si no hay stock suficiente en ningun deposito. No se debe dejar stock en negativo
+
+-- 2. Si es una nota de credito, actualizar la cantidad en el deposito que menos unidades tenga. si no hay unidades en inugn deposito, asignarle el deposito de menor codigo
+
+-- 3. por ultimo actualizar la comision del vendedor en la tabla Empleado con el siguiente indice: monto total facturado * (anios de antiguedad del empleado / 100)
+
+-- esta incompleto, falta todo
+
+CREATE TRIGGER TR_PARCIAL_MANIANA ON FACTURA INSTEAD OF INSERT
+AS 
+BEGIN 
+
+DECLARE @prod varchar(8) = (
+    SELECT item_producto
+        FROM INSERTED I
+    JOIN Item_Factura ON item_numero+item_tipo+item_sucursal = I.fact_numero+I.fact_tipo+I.fact_sucursal
+    ) -- codigo del producto INSERTADO
+
+DECLARE @cant_insertada INT = (
+    SELECT item_cantidad
+        FROM INSERTED I
+    JOIN Item_Factura ON item_numero+item_tipo+item_sucursal = I.fact_numero+I.fact_tipo+I.fact_sucursal
+    ) -- cantidad INSERTADA
+    
+
+DECLARE @depo_que_mas_tiene VARCHAR(2) = (
+    SELECT TOP 1 stoc_deposito 
+    FROM STOCK
+    WHERE stoc_producto = @prod
+    ORDER BY stoc_cantidad DESC
+    )
+
+
+
+IF(
+    SELECT SUM(stoc_cantidad)
+    FROM STOCK
+    WHERE stoc_producto = @prod
+    ) > 0  -- si hay stock disponible
+
+    BEGIN
+        IF(
+            (SELECT
+                SUM(stoc_cantidad)
+            FROM STOCK
+            WHERE stoc_deposito = @depo_que_mas_tiene
+        ) - @cant_insertada ) > 0   -- si al descontar, NO QUEDA NEGATIVO
+        BEGIN
+            UPDATE STOCK SET stoc_cantidad = stoc_cantidad - 1
+            WHERE stoc_producto = @prod AND stoc_deposito = @depo_que_mas_tiene
+        END
+        ELSE
+        RAISERROR('Codigo producto - codigo deposito - REQUIERE REPOSICION', 16, 1)
+        ROLLBACK TRANSACTION
+    END
+
+
+END
+
