@@ -646,3 +646,77 @@ IF(
 
 END
 
+/*30. Agregar el/los objetos necesarios para crear una regla por la cual un cliente no
+pueda comprar más de 100 unidades en el mes de ningún producto, si esto
+ocurre no se deberá ingresar la operación y se deberá emitir un mensaje “Se ha
+superado el límite máximo de compra de un producto”. Se sabe que esta regla se
+cumple y que las facturas no pueden ser modificadas.*/
+--aniomes: (SELECT convert(varchar(4),YEAR(fact_fecha)) + '-'+ convert(varchar(2),MONTH(fact_fecha))) AS aniomes
+-- SELECT convert(varchar(7), fact_fecha, 126) FROM FACTURA
+
+
+ALTER TRIGGER TR_30 ON Item_Factura INSTEAD OF INSERT
+AS
+BEGIN
+
+DECLARE @aniomes_inserted VARCHAR(7) = (
+    SELECT convert(varchar(7), fact_fecha, 126) FROM INSERTED JOIN Factura ON item_numero+item_tipo+item_sucursal = fact_numero+fact_tipo+fact_sucursal
+)
+
+DECLARE @producto_inserted VARCHAR(8) = (
+    SELECT I.item_producto FROM INSERTED I
+)
+
+DECLARE @cliente VARCHAR(5) = (
+    SELECT fact_cliente FROM INSERTED I
+    JOIN FACTURA ON I.item_numero+I.item_tipo+I.item_sucursal = factura.fact_numero+factura.fact_tipo+factura.fact_sucursal
+)
+
+DECLARE @cant_cursor int = 0
+DECLARE @conteo_productos_mes int = 0
+
+DECLARE cursor_limite_mes CURSOR FOR
+    SELECT 
+        SUM(item_cantidad)
+    FROM Item_Factura
+    JOIN Factura ON item_numero+item_tipo+item_sucursal = fact_numero+fact_tipo+fact_sucursal
+    WHERE 
+        fact_cliente = @cliente 
+        AND
+        CONVERT(varchar(7), fact_fecha, 126) = @aniomes_inserted
+    GROUP BY fact_cliente, CONVERT(varchar(7), fact_fecha, 126), item_producto
+
+OPEN cursor_limite_mes
+FETCH NEXT FROM cursor_limite_mes INTO @cant_cursor
+WHILE @@FETCH_STATUS = 0
+    BEGIN
+        SET @conteo_productos_mes = @conteo_productos_mes + @cant_cursor 
+        IF(@conteo_productos_mes > 100)
+            BEGIN
+                RAISERROR('EL CLIENTE HA SUPERADO LA COMPRA DE 100 PRODUCTOS POR MES', 16, 1)
+            END
+
+        FETCH NEXT FROM cursor_limite_mes INTO @cant_cursor
+    END 
+
+CLOSE cursor_limite_mes
+DEALLOCATE cursor_limite_mes
+
+IF (@conteo_productos_mes + (SELECT SUM(item_cantidad) FROM INSERTED) <= 100)
+BEGIN
+    INSERT INTO Item_Factura
+    SELECT * FROM INSERTED
+END
+ELSE
+BEGIN
+    RAISERROR('EL CLIENTE CON ESTQ COMPRA SUPERA LOS 100 PRODUCTOS POR MES', 16, 1)
+END
+
+
+PRINT(@producto_inserted)
+PRINT(@cliente)
+PRINT(@aniomes_inserted)
+print(@conteo_productos_mes)
+
+
+END
